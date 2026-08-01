@@ -1,0 +1,63 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+
+# IDE and user-specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local .NET CLI state
+.dotnet-cli/
+
+# Tests and coverage
+TestResults/
+test-results/
+coverage/
+coverage-output/
+*.coverage
+*.coveragexml
+*.trx
+
+# Secrets and local configuration overrides
+secrets.json
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.*.local.json
+*.secrets.json
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+*.mdf
+*.ldf
+
+# Logs
+logs/
+*.log
+
+# Frontend dependencies and generated output
+node_modules/
+.cache/
+.parcel-cache/
+.sass-cache/
+/dist/
+/build/
+
+# Raw Metronic/theme sources and archives
+metronic/
+metronic-source/
+theme-source/
+theme-cache/
+theme-dist/
+*.zip
+*.rar
+*.7z
