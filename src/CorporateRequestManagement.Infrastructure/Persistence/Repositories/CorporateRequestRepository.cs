@@ -1,0 +1,20 @@
+using CorporateRequestManagement.Application.Abstractions.Persistence;
+using CorporateRequestManagement.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace CorporateRequestManagement.Infrastructure.Persistence.Repositories;
+
+internal sealed class CorporateRequestRepository(ApplicationDbContext context) : ICorporateRequestRepository
+{
+    public Task<CorporateRequest?> GetByIdForUpdateAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        return context.CorporateRequests
+            .Include(request => request.Approvals)
+            .SingleOrDefaultAsync(request => request.Id == requestId, cancellationToken);
+    }
+
+    public async Task AddAsync(CorporateRequest request, CancellationToken cancellationToken = default)
+    {
+        await context.CorporateRequests.AddAsync(request, cancellationToken);
+    }
+}

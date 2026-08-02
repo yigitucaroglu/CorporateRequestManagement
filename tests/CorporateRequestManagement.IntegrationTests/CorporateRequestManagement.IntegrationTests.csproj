@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\CorporateRequestManagement.Api\CorporateRequestManagement.Api.csproj" />
     <ProjectReference Include="..\..\src\CorporateRequestManagement.Application\CorporateRequestManagement.Application.csproj" />
     <ProjectReference Include="..\..\src\CorporateRequestManagement.Infrastructure\CorporateRequestManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CorporateRequestManagement.Domain\CorporateRequestManagement.Domain.csproj" />
   </ItemGroup>
 
 </Project>
