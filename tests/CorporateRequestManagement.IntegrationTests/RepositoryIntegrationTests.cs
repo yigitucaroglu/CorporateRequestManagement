@@ -108,10 +108,13 @@ public sealed class RepositoryIntegrationTests(SqlServerDatabaseFixture fixture)
             await repository.AddAsync(token);
             await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync();
             context.ChangeTracker.Clear();
-            RefreshToken loaded = Assert.IsType<RefreshToken>(await repository.GetByHashAsync(hash));
-            Assert.Equal(EntityState.Unchanged, context.Entry(loaded).State);
-            loaded.Revoke(Now.AddMinutes(1), "127.0.0.2", null);
-            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync();
+            await scope.ServiceProvider.GetRequiredService<ITransactionExecutor>().ExecuteAsync(async cancellationToken =>
+            {
+                RefreshToken loaded = Assert.IsType<RefreshToken>(await repository.GetByHashForUpdateAsync(hash, cancellationToken));
+                Assert.Equal(EntityState.Unchanged, context.Entry(loaded).State);
+                loaded.Revoke(Now.AddMinutes(1), "127.0.0.2", null);
+                await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(cancellationToken);
+            });
         }
 
         await using ApplicationDbContext verification = fixture.CreateContext();

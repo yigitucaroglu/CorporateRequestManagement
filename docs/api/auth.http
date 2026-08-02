@@ -1,0 +1,25 @@
+@baseUrl = http://localhost:5100
+@accessToken = ACCESS_TOKEN_BURAYA
+@refreshToken = REFRESH_TOKEN_BURAYA
+
+### Development login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"admin@crm.local","password":"CrmDemo!2026"}
+
+### Current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh (yanıttaki yeni token değerlerini elle değiştirin)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{"refreshToken":"{{refreshToken}}"}
+
+### Revoke
+POST {{baseUrl}}/api/auth/revoke
+Content-Type: application/json
+
+{"refreshToken":"{{refreshToken}}"}

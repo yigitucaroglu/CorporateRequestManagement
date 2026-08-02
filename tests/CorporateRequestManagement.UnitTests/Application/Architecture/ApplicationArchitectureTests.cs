@@ -119,11 +119,16 @@ public sealed class ApplicationArchitectureTests
     }
 
     [Fact]
-    public void ApplicationProject_WhenPackageAndFrameworkReferencesAreInspected_ShouldContainNone()
+    public void ApplicationProject_WhenPackageAndFrameworkReferencesAreInspected_ShouldContainOnlyApprovedCqrsPackages()
     {
         XDocument project = XDocument.Load(ApplicationProjectPath());
-
-        Assert.Empty(Elements(project, "PackageReference"));
+        string[] packages = Elements(project, "PackageReference")
+            .Select(element => $"{element.Attribute("Include")?.Value}:{element.Attribute("Version")?.Value}")
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(
+            ["FluentValidation.DependencyInjectionExtensions:12.1.1", "FluentValidation:12.1.1", "MediatR:12.5.0"],
+            packages);
         Assert.Empty(Elements(project, "FrameworkReference"));
     }
 

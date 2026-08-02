@@ -20,7 +20,7 @@ public sealed class SqlServerDatabaseFixture : IAsyncLifetime
     public SqlServerDatabaseFixture()
     {
         string source = Environment.GetEnvironmentVariable("CRM_TEST_SQLSERVER_CONNECTION")
-            ?? "Server=(localdb)\\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true";
+            ?? throw new InvalidOperationException("CRM_TEST_SQLSERVER_CONNECTION must identify the integration-test SQL Server instance.");
         var builder = new SqlConnectionStringBuilder(source)
         {
             InitialCatalog = DatabasePrefix + Guid.NewGuid().ToString("N"),
@@ -74,13 +74,18 @@ public sealed class SqlServerDatabaseFixture : IAsyncLifetime
     internal async Task ResetDevelopmentSeedAsync()
     {
         await using ApplicationDbContext context = CreateContext();
+        Guid[] seedUserIds =
+        [
+            DevelopmentSeedData.AdminUserId,
+            DevelopmentSeedData.ManagerUserId,
+            DevelopmentSeedData.EmployeeUserId
+        ];
+        await context.RefreshTokens.Where(token => seedUserIds.Contains(token.UserId)).ExecuteDeleteAsync();
+        await context.AuditLogs.Where(audit => audit.UserId != null && seedUserIds.Contains(audit.UserId.Value)).ExecuteDeleteAsync();
         await context.Database.ExecuteSqlRawAsync(
             "UPDATE [Departments] SET [ManagerId] = NULL WHERE [Id] = {0}",
             DevelopmentSeedData.DepartmentId);
-        await context.Users.IgnoreQueryFilters().Where(user =>
-                user.Id == DevelopmentSeedData.AdminUserId
-                || user.Id == DevelopmentSeedData.ManagerUserId
-                || user.Id == DevelopmentSeedData.EmployeeUserId)
+        await context.Users.IgnoreQueryFilters().Where(user => seedUserIds.Contains(user.Id))
             .ExecuteDeleteAsync();
         await context.Departments.IgnoreQueryFilters()
             .Where(item => item.Id == DevelopmentSeedData.DepartmentId)

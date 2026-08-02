@@ -15,13 +15,12 @@ Domain bağımsızdır; Application yalnızca Domain'e, Infrastructure Applicati
 ## Gereksinimler
 
 - .NET 8 SDK
-- SQL Server 2019 veya sonrası; Windows geliştirme ortamında SQL Server Express LocalDB kullanılabilir
+- SQL Server 2019 veya sonrası
 
 Kurulumu doğrulamak için:
 
 ```powershell
 dotnet --info
-sqllocaldb info MSSQLLocalDB
 dotnet tool restore
 ```
 
@@ -35,11 +34,24 @@ dotnet build .\CorporateRequestManagement.sln --configuration Release --no-resto
 dotnet test .\CorporateRequestManagement.sln --configuration Release --no-build
 ```
 
-Entegrasyon testleri her koşuda `CorporateRequestManagement_IntegrationTests_` önekli benzersiz bir gerçek SQL Server veritabanı oluşturur, migration uygular ve yalnızca kendi oluşturduğu veritabanını siler. LocalDB dışındaki bir SQL Server için bağlantı şu ortam değişkeniyle verilebilir:
+Entegrasyon testleri her koşuda `CorporateRequestManagement_IntegrationTests_` önekli benzersiz bir gerçek SQL Server veritabanı oluşturur, migration uygular ve yalnızca kendi oluşturduğu veritabanını siler. Test bağlantısının tek kaynağı `CRM_TEST_SQLSERVER_CONNECTION` ortam değişkenidir; değişken yoksa testler açıkça başarısız olur.
 
 ```powershell
-$env:CRM_TEST_SQLSERVER_CONNECTION = "Server=localhost;Integrated Security=true;TrustServerCertificate=true"
+$env:CRM_TEST_SQLSERVER_CONNECTION = "<güvenli-test-sql-server-bağlantısı>"
 ```
+
+## Authentication kurulumu
+
+JWT issuer `CorporateRequestManagement.Api`, audience `CorporateRequestManagement.Clients`, access token ömrü 15 dakika ve refresh token ömrü 7 gündür. Signing key repository dosyalarında tutulmaz; en az 32 byte Development anahtarı user-secrets veya environment üzerinden sağlanır:
+
+```powershell
+dotnet user-secrets set "Jwt:SigningKey" "<minimum-32-byte-development-key>" --project .\src\CorporateRequestManagement.Api
+$env:Jwt__SigningKey = "<minimum-32-byte-development-key>"
+```
+
+Endpointler `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/revoke` ve yetkili `GET /api/auth/me` uçlarıdır. Raw refresh token yalnız istemciye döner; veritabanında yalnız SHA-256 özeti saklanır. Browser tarafında refresh token `localStorage` içinde tutulmamalıdır; Web taşıma kararı sonraki Auth UI diliminde uygulanacaktır.
+
+Auth uçları IP başına dakikada 5, genel API ise authenticated kullanıcı veya IP başına dakikada 100 istekle sınırlıdır. Hatalar `code`, `traceId` ve validation için `errors` içeren ProblemDetails döndürür. Development Swagger arayüzünde Bearer access token ile Authorize kullanılabilir; örnekler `docs/api/auth.http` dosyasındadır.
 
 ## EF Core migration yönetimi
 
