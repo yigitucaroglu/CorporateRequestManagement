@@ -1,0 +1,2 @@
+@model DashboardViewModel
+@{ ViewData["Title"] = "Ana Sayfa"; }<div class="card"><div class="card-body"><h1 class="fs-2 fw-bold mb-6">Hoş geldiniz, @Model.FullName</h1><dl class="row mb-0"><dt class="col-sm-3">E-posta</dt><dd class="col-sm-9">@Model.Email</dd><dt class="col-sm-3">Rol</dt><dd class="col-sm-9"><span class="badge badge-light-primary">@Model.Role</span></dd>@if(Model.DepartmentId.HasValue){<dt class="col-sm-3">Departman</dt><dd class="col-sm-9">@Model.DepartmentId</dd>}</dl></div></div>

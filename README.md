@@ -114,3 +114,20 @@ dotnet run --project .\src\CorporateRequestManagement.Web --urls http://localhos
 ```
 
 Phase 1C sonunda API henüz özellik endpoint'i sunmaz; root adresinin 404 dönmesi beklenir. Persistence katmanı SQL Server mapping, migration, repository/unit-of-work, transaction ve Development seed temellerini sağlar.
+
+## Web authentication ve Metronic
+
+Web uygulaması browser-for-frontend yaklaşımı kullanır: tarayıcı Authentication API'yi doğrudan çağırmaz. Access ve refresh token değerleri HTML, JavaScript, cookie ticket, `localStorage` veya `sessionStorage` içine yazılmaz; yalnızca Web sunucusundaki ASP.NET Core session token store içinde tutulur. Tarayıcıda güvenli, HttpOnly ve SameSite=Lax olan `__Host-Crm.Web.Auth` kimlik cookie'si ile opaque `__Host-Crm.Web.Session` session cookie'si bulunur. Form POST işlemleri antiforgery korumasındadır.
+
+Web'in API adresi `BackendApi:BaseUrl` ile yapılandırılır. Development için API ve Web ayrı terminallerde şu sırayla başlatılabilir:
+
+```powershell
+dotnet run --project .\src\CorporateRequestManagement.Api --urls http://localhost:5100
+dotnet run --project .\src\CorporateRequestManagement.Web --urls https://localhost:7240
+```
+
+Rotalar: `GET/POST /account/login`, yalnız POST olan `/account/logout` ve yetkili `/` dashboard. Dashboard isteğinde API 401 dönerse aynı opaque session kimliği için tek refresh çalıştırılır, dönen rotation tokenları atomik olarak session'a yazılır ve istek yalnız bir kez yinelenir.
+
+Bu case implementasyonu tek node üzerinde memory-backed session kullanır. Çoklu instance production dağıtımında ortak bir distributed session store ve paylaşılan data-protection key ring gerekir.
+
+Metronic kaynak paketi `.vendor/metronic` altında local-only tutulur. Repository'ye yalnız corporate login ve uygulama shell'i için gereken derlenmiş bundle, font ve görsel alt kümesi kopyalanır; demo sayfaları, kaynak arşivleri, `node_modules`, dokümantasyon ve lisans dosyaları kopyalanmaz. Metronic kaynak/sürüm ve lisans sahipliği proje tesliminde lisans sahibi tarafından doğrulanmalıdır.

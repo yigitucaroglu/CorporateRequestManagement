@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CorporateRequestManagement.IntegrationTests;
 
@@ -26,6 +27,7 @@ public sealed class AuthenticationApiIntegrationTests(SqlServerDatabaseFixture f
         await fixture.ResetDevelopmentSeedAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            builder.ConfigureLogging(logging => logging.ClearProviders());
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:DefaultConnection", fixture.ConnectionString);
             builder.UseSetting("Jwt:Issuer", "CorporateRequestManagement.Api");
@@ -101,6 +103,7 @@ public sealed class AuthenticationApiIntegrationTests(SqlServerDatabaseFixture f
     {
         await using WebApplicationFactory<Program> limited = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            builder.ConfigureLogging(logging => logging.ClearProviders());
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:DefaultConnection", fixture.ConnectionString);
             builder.UseSetting("Jwt:Issuer", "CorporateRequestManagement.Api");

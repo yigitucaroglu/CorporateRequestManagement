@@ -20,3 +20,5 @@ html {
 body {
   margin-bottom: 60px;
 }
+.crm-auth-visual { background-image: url('/assets/media/misc/auth-bg.png'); background-color: #151521; }
+@media (max-width: 991.98px) { .crm-auth-visual { min-height: 240px; } .app-sidebar { display: none; } }
