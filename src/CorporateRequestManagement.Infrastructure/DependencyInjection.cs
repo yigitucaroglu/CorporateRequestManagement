@@ -14,6 +14,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text;
+using CorporateRequestManagement.Application.Abstractions.Approvals;
+using CorporateRequestManagement.Infrastructure.Approvals;
 
 namespace CorporateRequestManagement.Infrastructure;
 
@@ -25,6 +27,7 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
+        services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -35,6 +38,9 @@ public static class DependencyInjection
         services.AddScoped<DatabaseInitializer>();
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
         services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<ApprovalOptions>().Configure(options => options.Threshold = 10_000m)
+            .Validate(options => options.Threshold > 0, "Approval threshold sıfırdan büyük olmalıdır.").ValidateOnStart();
+        services.AddSingleton<IApprovalThresholdProvider, ApprovalThresholdProvider>();
         return services;
     }
 
@@ -47,6 +53,7 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
+        services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -75,6 +82,16 @@ public static class DependencyInjection
             .Validate(options => options.RefreshTokenDays is >= 1 and <= 30, "RefreshTokenDays 1-30 aralığında olmalıdır.")
             .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<ApprovalOptions>().Configure(options =>
+            {
+                options.Threshold = decimal.TryParse(
+                    configuration[$"{ApprovalOptions.SectionName}:Threshold"],
+                    out decimal threshold)
+                    ? threshold
+                    : 10_000m;
+            })
+            .Validate(options => options.Threshold > 0, "Approval threshold sıfırdan büyük olmalıdır.").ValidateOnStart();
+        services.AddSingleton<IApprovalThresholdProvider, ApprovalThresholdProvider>();
 
         return services;
     }

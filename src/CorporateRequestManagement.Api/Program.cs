@@ -48,7 +48,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         OnForbidden = JwtBearerEventsHandler.Forbidden
     };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Requests.ManagerApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Manager"));
+    options.AddPolicy("Requests.AdminApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+});
 int authLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 5);
 int generalLimit = builder.Configuration.GetValue("RateLimiting:GeneralPermitLimit", 100);
 int windowSeconds = builder.Configuration.GetValue("RateLimiting:WindowSeconds", 60);

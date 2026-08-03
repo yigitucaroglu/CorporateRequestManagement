@@ -11,4 +11,8 @@ public interface ICorporateRequestRepository
     Task AddAsync(
         CorporateRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<CorporateRequest?> GetForManagerDecisionAsync(Guid requestId, Guid managerUserId, CancellationToken cancellationToken = default);
+
+    Task<CorporateRequest?> GetForAdminDecisionAsync(Guid requestId, CancellationToken cancellationToken = default);
 }

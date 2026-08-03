@@ -1,0 +1,66 @@
+@api = https://localhost:7100
+@managerToken = PASTE_MANAGER_ACCESS_TOKEN_HERE
+@adminToken = PASTE_ADMIN_ACCESS_TOKEN_HERE
+@ownerToken = PASTE_OWNER_ACCESS_TOKEN_HERE
+@requestId = PASTE_REQUEST_ID_HERE
+@rowVersion = PASTE_BASE64_ROWVERSION_FROM_PREVIOUS_RESPONSE_HERE
+
+### Development manager login (token değerini managerToken alanına kopyalayın)
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "manager@crm.local", "password": "CrmDemo!2026" }
+
+### Development admin login (token değerini adminToken alanına kopyalayın)
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@crm.local", "password": "CrmDemo!2026" }
+
+### Manager pending queue
+GET {{api}}/api/approvals/manager?pageNumber=1&pageSize=20&sortBy=submittedDate&sortDirection=Ascending
+Authorization: Bearer {{managerToken}}
+
+### Manager detail
+GET {{api}}/api/approvals/manager/{{requestId}}
+Authorization: Bearer {{managerToken}}
+
+### Manager approve — en son response içindeki rowVersion kullanılmalıdır
+POST {{api}}/api/approvals/manager/{{requestId}}/approve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}" }
+
+### Manager reject
+POST {{api}}/api/approvals/manager/{{requestId}}/reject
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}", "reason": "Güvenli ret gerekçesi" }
+
+### Admin pending queue
+GET {{api}}/api/approvals/admin?pageNumber=1&pageSize=20&sortBy=submittedDate&sortDirection=Ascending
+Authorization: Bearer {{adminToken}}
+
+### Admin detail
+GET {{api}}/api/approvals/admin/{{requestId}}
+Authorization: Bearer {{adminToken}}
+
+### Admin approve — manager kararı sonrasında dönen yeni rowVersion kullanılmalıdır
+POST {{api}}/api/approvals/admin/{{requestId}}/approve
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}" }
+
+### Admin reject
+POST {{api}}/api/approvals/admin/{{requestId}}/reject
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}", "reason": "Güvenli ret gerekçesi" }
+
+### Approval history (owner, authoritative manager veya Admin)
+GET {{api}}/api/requests/{{requestId}}/approval-history
+Authorization: Bearer {{ownerToken}}

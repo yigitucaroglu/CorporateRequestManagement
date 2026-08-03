@@ -138,4 +138,14 @@ Yetkili kullanıcılar `POST /api/requests`, `GET /api/requests`, `GET /api/requ
 
 `CreatedByUserId`, `DepartmentId` ve `Status` istemci body’sinden alınmaz. Owner authenticated kullanıcıdan, departman ise kullanıcının güncel departmanından türetilir ve talepte snapshot olarak saklanır. Listeleme paging, status/type/date filtreleri, whitelist sort alanları ve kararlı Id tie-breaker kullanır.
 
-Mutation response’ları SQL Server RowVersion değerini 8-byte Base64 string olarak döndürür. Update, submit ve cancel son response’daki RowVersion’ı ister; malformed değer 400, stale değer `409 concurrency.conflict` üretir. Audit action’ları `CorporateRequest.Created`, `CorporateRequest.DraftUpdated`, `CorporateRequest.Submitted` ve `CorporateRequest.Cancelled` olup description, token veya RowVersion içermez. Manager/Admin approval ve rejection işlemleri sonraki backend fazına bırakılmıştır. Örnek çağrılar [requests.http](docs/api/requests.http) dosyasındadır.
+Mutation response’ları SQL Server RowVersion değerini 8-byte Base64 string olarak döndürür. Update, submit ve cancel son response’daki RowVersion’ı ister; malformed değer 400, stale değer `409 concurrency.conflict` üretir. Audit action’ları `CorporateRequest.Created`, `CorporateRequest.DraftUpdated`, `CorporateRequest.Submitted` ve `CorporateRequest.Cancelled` olup description, token veya RowVersion içermez. Örnek çağrılar [requests.http](docs/api/requests.http) dosyasındadır.
+
+## Manager ve Admin approval API
+
+Manager approval kapsamı kullanıcının departman alanından değil, authoritative `Department.ManagerId` ilişkisinden belirlenir. Manager queue/detail/decision uçları yalnız ilgili aktif departmanın `PendingManagerApproval` taleplerini kapsar ve manager’ın kendi taleplerini actionable queue dışında bırakır. Başka departmandaki veya bulunmayan talep aynı güvenli 404 sonucunu; self-action `409 approval.self_action_forbidden` sonucunu üretir. Admin, Manager rolünü devralmaz ve manager uçlarını kullanamaz.
+
+Manager approve işleminde amount null veya yapılandırılmış `Approval:Threshold` değerine eşit/altındaysa talep final `Approved`; threshold üstündeyse `PendingAdminApproval` olur. Varsayılan threshold 10.000’dir. Manager reject final `Rejected` üretir. Admin yalnız `PendingAdminApproval` taleplerini global queue üzerinden approve/reject edebilir; iki karar da final durum ve `CompletedDate` üretir. Güvenli varsayılan olarak Admin self-action da yasaktır.
+
+Her karar güncel 8-byte Base64 RowVersion ister. Stale değer `409 concurrency.conflict`, aynı seviyedeki tekrar karar `409 approval.already_processed` üretir. Request mutation, tekil `(RequestId, ApprovalLevel)` RequestApproval kaydı ve redakte audit kaydı tek `SaveChanges` atomiklik sınırındadır. Audit payload’ı rejection reason, token veya RowVersion taşımaz.
+
+Approval history owner, authoritative department manager ve Admin tarafından görülebilir; diğer aktörlerde kaynak varlığını sızdırmayan 404 döner. Phase 6, bu kararlı HTTP sözleşmesinin Manager/Admin Metronic UI dilimini ekleyecektir. Örnekler [approvals.http](docs/api/approvals.http) dosyasındadır.

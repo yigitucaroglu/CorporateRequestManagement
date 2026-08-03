@@ -7,6 +7,8 @@ using CorporateRequestManagement.Application.Features.CorporateRequests.GetById;
 using CorporateRequestManagement.Application.Features.CorporateRequests.GetMine;
 using CorporateRequestManagement.Application.Features.CorporateRequests.Submit;
 using CorporateRequestManagement.Application.Features.CorporateRequests.UpdateDraft;
+using CorporateRequestManagement.Application.Features.Approvals.Common;
+using CorporateRequestManagement.Application.Features.Approvals.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,4 +44,8 @@ public sealed class CorporateRequestsController(ISender sender) : ControllerBase
     [HttpPost("{id:guid}/cancel"), ProducesResponseType<CorporateRequestDetailDto>(StatusCodes.Status200OK)]
     public Task<CorporateRequestDetailDto> Cancel(Guid id, CorporateRequestMutationRequest request, CancellationToken cancellationToken) =>
         sender.Send(new CancelCorporateRequestCommand(id, request.RowVersion), cancellationToken);
+
+    [HttpGet("{id:guid}/approval-history"), ProducesResponseType<IReadOnlyList<ApprovalHistoryItemDto>>(StatusCodes.Status200OK)]
+    public Task<IReadOnlyList<ApprovalHistoryItemDto>> ApprovalHistory(Guid id, CancellationToken cancellationToken) =>
+        sender.Send(new GetApprovalHistoryQuery(id), cancellationToken);
 }

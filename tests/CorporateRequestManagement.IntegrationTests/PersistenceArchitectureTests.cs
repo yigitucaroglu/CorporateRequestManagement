@@ -24,7 +24,7 @@ public sealed class PersistenceArchitectureTests
                 && type.Name.EndsWith("Repository", StringComparison.Ordinal))
             .ToArray();
 
-        Assert.Equal(6, repositoryTypes.Length);
+        Assert.Equal(7, repositoryTypes.Length);
         Assert.All(repositoryTypes, type =>
         {
             Assert.True(type.IsNotPublic);
@@ -79,6 +79,7 @@ public sealed class PersistenceArchitectureTests
         [
             typeof(ICorporateRequestRepository),
             typeof(ICorporateRequestReadRepository),
+            typeof(IApprovalReadRepository),
             typeof(IUserRepository),
             typeof(IDepartmentRepository),
             typeof(IRefreshTokenRepository),
