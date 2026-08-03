@@ -1,0 +1,50 @@
+@api = https://localhost:7100
+@accessToken = PASTE_DEVELOPMENT_ACCESS_TOKEN_HERE
+@requestId = PASTE_REQUEST_ID_HERE
+@rowVersion = PASTE_BASE64_ROWVERSION_FROM_PREVIOUS_RESPONSE_HERE
+
+### Development login (yalnız yerel demo ortamı)
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "employee@crm.local", "password": "CrmDemo!2026" }
+
+### Create draft
+POST {{api}}/api/requests
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{ "title": "Yeni ekipman talebi", "description": "Geliştirme ortamı örnek talebi", "requestType": 2, "amount": 1250.00 }
+
+### My requests
+GET {{api}}/api/requests?pageNumber=1&pageSize=20&sortBy=createdDate&sortDirection=Descending
+Authorization: Bearer {{accessToken}}
+
+### Filtered requests
+GET {{api}}/api/requests?status=Draft&requestType=Equipment&createdFrom=2026-01-01T00:00:00Z&createdTo=2026-12-31T23:59:59Z
+Authorization: Bearer {{accessToken}}
+
+### Detail
+GET {{api}}/api/requests/{{requestId}}
+Authorization: Bearer {{accessToken}}
+
+### Update draft — rowVersion değerini son response içinden kopyalayın
+PUT {{api}}/api/requests/{{requestId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{ "title": "Güncellenmiş talep", "description": "Güncel açıklama", "requestType": 2, "amount": 1300.00, "rowVersion": "{{rowVersion}}" }
+
+### Submit — update response içindeki yeni rowVersion kullanılmalıdır
+POST {{api}}/api/requests/{{requestId}}/submit
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}" }
+
+### Cancel — her mutation sonrasında dönen en yeni rowVersion kullanılmalıdır
+POST {{api}}/api/requests/{{requestId}}/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{ "rowVersion": "{{rowVersion}}" }

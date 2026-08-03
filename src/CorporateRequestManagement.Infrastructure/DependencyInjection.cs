@@ -24,6 +24,7 @@ public static class DependencyInjection
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
+        services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -45,6 +46,7 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
+        services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

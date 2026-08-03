@@ -76,6 +76,8 @@ public sealed class AuthenticationApiIntegrationTests(SqlServerDatabaseFixture f
     {
         using HttpClient client = factory!.CreateClient();
         string json = await client.GetStringAsync("/swagger/v1/swagger.json");
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
         Assert.Contains("/api/auth/login", json, StringComparison.Ordinal);
         Assert.Contains("/api/auth/refresh", json, StringComparison.Ordinal);
         Assert.Contains("/api/auth/revoke", json, StringComparison.Ordinal);
@@ -83,6 +85,33 @@ public sealed class AuthenticationApiIntegrationTests(SqlServerDatabaseFixture f
         Assert.Contains("Bearer", json, StringComparison.Ordinal);
         Assert.DoesNotContain("passwordHash", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("tokenHash", json, StringComparison.OrdinalIgnoreCase);
+        JsonElement bearer = root.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer");
+        Assert.Equal("http", bearer.GetProperty("type").GetString());
+        Assert.Equal("bearer", bearer.GetProperty("scheme").GetString());
+        Assert.Equal("JWT", bearer.GetProperty("bearerFormat").GetString());
+
+        AssertBearerRequired(root, "/api/auth/me", "get");
+        AssertBearerRequired(root, "/api/requests", "get");
+        AssertBearerRequired(root, "/api/requests", "post");
+        AssertBearerRequired(root, "/api/requests/{id}", "get");
+        AssertAnonymous(root, "/api/auth/login", "post");
+        AssertAnonymous(root, "/api/auth/refresh", "post");
+    }
+
+    private static void AssertBearerRequired(JsonElement root, string path, string method)
+    {
+        JsonElement operation = root.GetProperty("paths").GetProperty(path).GetProperty(method);
+        JsonElement security = operation.TryGetProperty("security", out JsonElement operationSecurity)
+            ? operationSecurity
+            : root.GetProperty("security");
+        Assert.Contains(security.EnumerateArray(), requirement => requirement.TryGetProperty("Bearer", out _));
+    }
+
+    private static void AssertAnonymous(JsonElement root, string path, string method)
+    {
+        JsonElement operation = root.GetProperty("paths").GetProperty(path).GetProperty(method);
+        Assert.True(operation.TryGetProperty("security", out JsonElement security));
+        Assert.Empty(security.EnumerateArray());
     }
 
     [Fact]

@@ -131,3 +131,11 @@ Rotalar: `GET/POST /account/login`, yalnız POST olan `/account/logout` ve yetki
 Bu case implementasyonu tek node üzerinde memory-backed session kullanır. Çoklu instance production dağıtımında ortak bir distributed session store ve paylaşılan data-protection key ring gerekir.
 
 Metronic kaynak paketi `.vendor/metronic` altında local-only tutulur. Repository'ye yalnız corporate login ve uygulama shell'i için gereken derlenmiş bundle, font ve görsel alt kümesi kopyalanır; demo sayfaları, kaynak arşivleri, `node_modules`, dokümantasyon ve lisans dosyaları kopyalanmaz. Metronic kaynak/sürüm ve lisans sahipliği proje tesliminde lisans sahibi tarafından doğrulanmalıdır.
+
+## Employee request self-service API
+
+Yetkili kullanıcılar `POST /api/requests`, `GET /api/requests`, `GET /api/requests/{id}`, `PUT /api/requests/{id}`, `POST /api/requests/{id}/submit` ve `POST /api/requests/{id}/cancel` uçlarıyla kendi taleplerini yönetir. Manager’ın kendi talebine ilişkin domain kuralı bulunduğundan sözleşme yeni bir Employee-only rol varsaymaz; authentication ve own-resource ownership zorunludur. Başka kullanıcıya ait veya bulunmayan talep aynı güvenli `404 request.not_found` sonucunu üretir.
+
+`CreatedByUserId`, `DepartmentId` ve `Status` istemci body’sinden alınmaz. Owner authenticated kullanıcıdan, departman ise kullanıcının güncel departmanından türetilir ve talepte snapshot olarak saklanır. Listeleme paging, status/type/date filtreleri, whitelist sort alanları ve kararlı Id tie-breaker kullanır.
+
+Mutation response’ları SQL Server RowVersion değerini 8-byte Base64 string olarak döndürür. Update, submit ve cancel son response’daki RowVersion’ı ister; malformed değer 400, stale değer `409 concurrency.conflict` üretir. Audit action’ları `CorporateRequest.Created`, `CorporateRequest.DraftUpdated`, `CorporateRequest.Submitted` ve `CorporateRequest.Cancelled` olup description, token veya RowVersion içermez. Manager/Admin approval ve rejection işlemleri sonraki backend fazına bırakılmıştır. Örnek çağrılar [requests.http](docs/api/requests.http) dosyasındadır.

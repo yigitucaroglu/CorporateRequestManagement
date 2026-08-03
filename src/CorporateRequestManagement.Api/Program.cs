@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using CorporateRequestManagement.Api.Authentication;
 using CorporateRequestManagement.Api.Errors;
+using CorporateRequestManagement.Api.OpenApi;
 using CorporateRequestManagement.Application;
 using CorporateRequestManagement.Application.Abstractions.Identity;
 using CorporateRequestManagement.Infrastructure;
@@ -60,7 +61,19 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT" });
+    const string bearerScheme = "Bearer";
+    options.AddSecurityDefinition(bearerScheme, new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
+    });
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference(bearerScheme, document)] = []
+    });
+    options.OperationFilter<AllowAnonymousOperationFilter>();
 });
 var app = builder.Build();
 if (args.Contains("--initialize-database", StringComparer.Ordinal))
