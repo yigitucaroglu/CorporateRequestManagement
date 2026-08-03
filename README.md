@@ -136,6 +136,8 @@ Metronic kaynak paketi `.vendor/metronic` altında local-only tutulur. Repositor
 
 Yetkili kullanıcılar `POST /api/requests`, `GET /api/requests`, `GET /api/requests/{id}`, `PUT /api/requests/{id}`, `POST /api/requests/{id}/submit` ve `POST /api/requests/{id}/cancel` uçlarıyla kendi taleplerini yönetir. Manager’ın kendi talebine ilişkin domain kuralı bulunduğundan sözleşme yeni bir Employee-only rol varsaymaz; authentication ve own-resource ownership zorunludur. Başka kullanıcıya ait veya bulunmayan talep aynı güvenli `404 request.not_found` sonucunu üretir.
 
+`GET /api/requests` üzerindeki optional `searchTerm`, kullanıcının kendi aktif taleplerinde başlık ve açıklamayı SQL Server tarafında arar. Trimlenmiş maksimum uzunluk 100 karakterdir; arama status/type/date filtreleri, deterministic sorting ve server-side paging ile birlikte çalışır.
+
 `CreatedByUserId`, `DepartmentId` ve `Status` istemci body’sinden alınmaz. Owner authenticated kullanıcıdan, departman ise kullanıcının güncel departmanından türetilir ve talepte snapshot olarak saklanır. Listeleme paging, status/type/date filtreleri, whitelist sort alanları ve kararlı Id tie-breaker kullanır.
 
 Mutation response’ları SQL Server RowVersion değerini 8-byte Base64 string olarak döndürür. Update, submit ve cancel son response’daki RowVersion’ı ister; malformed değer 400, stale değer `409 concurrency.conflict` üretir. Audit action’ları `CorporateRequest.Created`, `CorporateRequest.DraftUpdated`, `CorporateRequest.Submitted` ve `CorporateRequest.Cancelled` olup description, token veya RowVersion içermez. Örnek çağrılar [requests.http](docs/api/requests.http) dosyasındadır.
@@ -149,3 +151,17 @@ Manager approve işleminde amount null veya yapılandırılmış `Approval:Thres
 Her karar güncel 8-byte Base64 RowVersion ister. Stale değer `409 concurrency.conflict`, aynı seviyedeki tekrar karar `409 approval.already_processed` üretir. Request mutation, tekil `(RequestId, ApprovalLevel)` RequestApproval kaydı ve redakte audit kaydı tek `SaveChanges` atomiklik sınırındadır. Audit payload’ı rejection reason, token veya RowVersion taşımaz.
 
 Approval history owner, authoritative department manager ve Admin tarafından görülebilir; diğer aktörlerde kaynak varlığını sızdırmayan 404 döner. Phase 6, bu kararlı HTTP sözleşmesinin Manager/Admin Metronic UI dilimini ekleyecektir. Örnekler [approvals.http](docs/api/approvals.http) dosyasındadır.
+## Premium talep ve onay arayüzü
+
+Web uygulaması server-rendered MVC/BFF akışını korur: browser yalnız Web uygulamasına form gönderir; Requests ve Approvals API çağrıları server-side odaklı HTTP client’lar üzerinden yapılır. Access/refresh token HTML, JavaScript, cookie ticket, `localStorage` veya `sessionStorage` içine yazılmaz. Mevcut opaque session token store ve tek-sefer refresh/retry düzeni kullanılır.
+
+UI rotaları `/Requests`, `/Requests/Create`, `/Requests/{id}`, `/Requests/{id}/Edit`, `/Approvals/Manager` ve `/Approvals/Admin` şeklindedir. Tüm mutation’lar antiforgery korumalı POST ve başarılı sonuçlarda PRG uygular. Exact-role navigasyon kullanılır; API authorization authoritative kalır.
+
+RowVersion yalnız hidden business alanı olarak taşınır. Concurrency conflict otomatik overwrite edilmez; kullanıcı güncel kaydı yeniden yüklemeye yönlendirilir. API hataları raw içerik göstermeyen Türkçe deneyimlere çevrilir. Desktop tablolar mobilde yatay scroll oluşturmayan kartlara dönüşür.
+
+Görünür ürün kimliği “Kurumsal Talep Yönetimi”dir. Metronic yalnız kontrollü UI altyapısı olarak kullanılır; görünür template markası veya demo içeriği yoktur. Ayrıntılar [Phase 6 UI Guide](docs/ui/phase6-ui-guide.md) içindedir.
+### Rol bazlı analytics dashboard
+
+Employee dashboard yalnız kullanıcının kendi taleplerini; Manager dashboard authoritative `Department.ManagerId` kapsamındaki gelen talepleri ve yöneticinin kendi kararlarını; Admin dashboard ise güvenli sistem aggregate'lerini gösterir. Bugün, bu ay ve bu yıl sınırları UTC ve `[başlangıç, sonraki başlangıç)` semantiğiyle hesaplanır. Son 30 günlük talep grafiği SQL Server günlük aggregate sorgularından gelir; sahte KPI veya rastgele grafik verisi kullanılmaz.
+
+Akış Browser → Web BFF → role-specific `/api/dashboard/*` → MediatR → dashboard read repository → SQL Server şeklindedir. Manager/Admin onay kuyrukları server-side `searchTerm` aramasını ve Taleplerim ile ortak toolbar, collapsible filtre ve 10/20/50/100 page-size pagination standardını kullanır.

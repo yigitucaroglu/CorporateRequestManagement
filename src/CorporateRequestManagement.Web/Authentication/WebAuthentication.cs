@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 
 namespace CorporateRequestManagement.Web.Authentication;
 
@@ -25,6 +26,28 @@ internal sealed class SessionUserTokenStore(IHttpContextAccessor accessor) : IUs
     }
     public Task SetAsync(WebUserSession session, CancellationToken cancellationToken = default) { ArgumentNullException.ThrowIfNull(session); if (!session.IsValid) throw new ArgumentException("Session token material is invalid.", nameof(session)); accessor.HttpContext!.Session.SetString(WebAuthenticationDefaults.SessionKey, JsonSerializer.Serialize(session)); return Task.CompletedTask; }
     public Task ClearAsync(CancellationToken cancellationToken = default) { accessor.HttpContext?.Session.Remove(WebAuthenticationDefaults.SessionKey); return Task.CompletedTask; }
+}
+
+public interface ILocalAuthenticationState
+{
+    Task<bool> HasValidSessionAsync(CancellationToken cancellationToken = default);
+    Task ClearAsync(CancellationToken cancellationToken = default);
+}
+
+internal sealed class LocalAuthenticationState(IHttpContextAccessor accessor, IUserTokenStore tokenStore) : ILocalAuthenticationState
+{
+    public async Task<bool> HasValidSessionAsync(CancellationToken cancellationToken = default) =>
+        await tokenStore.GetAsync(cancellationToken) is not null;
+
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
+    {
+        await tokenStore.ClearAsync(cancellationToken);
+        HttpContext? context = accessor.HttpContext;
+        if (context is null) return;
+
+        context.Session.Clear();
+        await context.SignOutAsync(WebAuthenticationDefaults.Scheme);
+    }
 }
 
 public sealed class AuthenticatedUserContract { public Guid Id { get; init; } public string FirstName { get; init; } = string.Empty; public string LastName { get; init; } = string.Empty; public string Email { get; init; } = string.Empty; public string Role { get; init; } = string.Empty; public Guid? DepartmentId { get; init; } }
@@ -120,11 +143,12 @@ internal sealed class AuthenticatedUserApiClient(
     IUserTokenStore store,
     IAuthenticationApiClient authentication,
     IRefreshCoordinator refreshCoordinator,
-    IHttpContextAccessor httpContextAccessor) : IAuthenticatedUserApiClient
+    IHttpContextAccessor httpContextAccessor,
+    ILocalAuthenticationState localAuthenticationState) : IAuthenticatedUserApiClient
 {
     public async Task<AuthenticatedUserContract?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
-        WebUserSession? session = await store.GetAsync(cancellationToken); if (session is null) return null;
+        WebUserSession? session = await store.GetAsync(cancellationToken); if (session is null) { await localAuthenticationState.ClearAsync(cancellationToken); return null; }
         using HttpResponseMessage first = await SendAsync(session.AccessToken, cancellationToken);
         if (first.StatusCode != HttpStatusCode.Unauthorized) return first.IsSuccessStatusCode ? await first.Content.ReadFromJsonAsync<AuthenticatedUserContract>(cancellationToken: cancellationToken) : null;
         string sessionId = httpContextAccessor.HttpContext?.Session.Id ?? throw new InvalidOperationException("An active Web session is required.");
@@ -135,7 +159,7 @@ internal sealed class AuthenticatedUserApiClient(
         if (current is null) return null;
 
         using HttpResponseMessage retry = await SendAsync(current.AccessToken, cancellationToken);
-        if (!retry.IsSuccessStatusCode) { if (retry.StatusCode == HttpStatusCode.Unauthorized) await store.ClearAsync(cancellationToken); return null; }
+        if (!retry.IsSuccessStatusCode) { if (retry.StatusCode == HttpStatusCode.Unauthorized) await localAuthenticationState.ClearAsync(cancellationToken); return null; }
         return await retry.Content.ReadFromJsonAsync<AuthenticatedUserContract>(cancellationToken: cancellationToken);
     }
 
@@ -150,7 +174,7 @@ internal sealed class AuthenticatedUserApiClient(
         ApiCallResult<AuthenticationContract> refreshed = await authentication.RefreshAsync(latest.RefreshToken, cancellationToken);
         if (refreshed.Value is null)
         {
-            await store.ClearAsync(cancellationToken);
+            await localAuthenticationState.ClearAsync(cancellationToken);
             return null;
         }
 

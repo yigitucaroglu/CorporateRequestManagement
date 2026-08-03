@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
+        services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -54,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ICorporateRequestRepository, CorporateRequestRepository>();
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
+        services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

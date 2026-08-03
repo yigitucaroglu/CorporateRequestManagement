@@ -1,2 +1,23 @@
-<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>@ViewData["Title"] - Kurumsal Talep Yönetimi</title><link rel="icon" href="~/assets/media/logos/favicon.ico"/><link rel="stylesheet" href="~/assets/plugins/global/plugins.bundle.css"/><link rel="stylesheet" href="~/assets/css/style.bundle.css"/><link rel="stylesheet" href="~/css/site.css"/></head>
-<body id="kt_app_body" class="app-default"><div class="d-flex flex-column flex-root app-root"><div class="app-page flex-column flex-column-fluid"><header class="app-header bg-white border-bottom"><div class="container-fluid d-flex align-items-center justify-content-between py-4"><a asp-controller="Dashboard" asp-action="Index" class="fs-4 fw-bold text-dark">Kurumsal Talep Yönetimi</a><div class="d-flex align-items-center gap-3"><span class="text-gray-700">@User.Identity?.Name</span><form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-sm btn-light-danger" type="submit">Çıkış</button></form></div></div></header><div class="app-wrapper d-flex flex-row flex-column-fluid"><aside class="app-sidebar bg-dark w-225px p-6"><a asp-controller="Dashboard" asp-action="Index" class="text-white fw-semibold">Ana Sayfa</a></aside><main class="app-main flex-column flex-row-fluid"><div class="container-fluid py-8">@RenderBody()</div></main></div></div></div><script src="~/assets/plugins/global/plugins.bundle.js"></script><script src="~/assets/js/scripts.bundle.js"></script><script src="~/js/site.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>@ViewData["Title"] | @ProductIdentity.Name</title><link rel="icon" type="image/svg+xml" href="~/favicon.svg"/>
+<link rel="stylesheet" href="~/assets/plugins/global/plugins.bundle.css"/><link rel="stylesheet" href="~/assets/css/style.bundle.css"/><link rel="stylesheet" href="~/css/crm-ui.css" asp-append-version="true"/></head>
+<body class="crm-body"><div class="crm-shell">
+<div class="crm-overlay" data-sidebar-close></div>
+<aside class="crm-sidebar" id="crm-sidebar" aria-label="Ana navigasyon">
+  <a class="crm-brand" asp-controller="Dashboard" asp-action="Index"><span class="crm-mark" aria-hidden="true"><i></i><b></b></span><span><strong>@ProductIdentity.ShortName</strong><small>Yönetim Merkezi</small></span></a>
+  <nav class="crm-nav"><span class="crm-nav-label">Çalışma Alanı</span>
+    <a asp-controller="Dashboard" asp-action="Index"><i class="ki-outline ki-home-2" aria-hidden="true"></i>Ana Sayfa</a>
+    @if (User.IsInRole("Employee") || User.IsInRole("Manager"))
+    {
+      <a asp-controller="Requests" asp-action="Index"><i class="ki-outline ki-document" aria-hidden="true"></i>Taleplerim</a>
+      <a asp-controller="Requests" asp-action="Create"><svg class="crm-nav-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M14 3.75H6.75a2 2 0 0 0-2 2v12.5a2 2 0 0 0 2 2h10.5a2 2 0 0 0 2-2V9m-5-5.25L19.25 9H14V3.75ZM12 11v6m-3-3h6" /></svg>Yeni Talep</a>
+    }
+    @if (User.IsInRole("Manager")) { <a asp-controller="ManagerApprovals" asp-action="Index"><i class="ki-outline ki-shield-tick" aria-hidden="true"></i>Yönetici Onayları</a> }
+    @if (User.IsInRole("Admin")) { <a asp-controller="AdminApprovals" asp-action="Index"><i class="ki-outline ki-shield-search" aria-hidden="true"></i>Yönetim Onayları</a> }
+  </nav>
+  <div class="crm-sidebar-foot"><span class="crm-avatar">@((User.Identity?.Name ?? "K")[0])</span><span><strong>@User.Identity?.Name</strong><small>@UiDisplay.Role(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)</small></span></div>
+</aside>
+<div class="crm-main"><header class="crm-header"><button class="crm-icon-btn crm-menu-trigger" type="button" data-sidebar-open aria-label="Menüyü aç" aria-controls="crm-sidebar"><i class="ki-outline ki-burger-menu-2"></i></button><div><span class="crm-eyebrow">@ProductIdentity.Name</span><h1>@ViewData["Title"]</h1></div><form asp-controller="Account" asp-action="Logout" method="post"><button class="crm-user-action" type="submit"><i class="ki-outline ki-exit-right"></i><span>Çıkış Yap</span></button></form></header>
+<main class="crm-content"><partial name="_TempDataFeedback"/>@RenderBody()</main></div></div>
+<script src="~/assets/plugins/global/plugins.bundle.js"></script><script src="~/assets/js/scripts.bundle.js"></script><script src="~/js/crm-ui.js" asp-append-version="true"></script>@await RenderSectionAsync("Scripts", false)</body></html>

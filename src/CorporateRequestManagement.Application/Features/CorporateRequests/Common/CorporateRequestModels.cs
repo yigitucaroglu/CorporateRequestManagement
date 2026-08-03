@@ -15,7 +15,14 @@ public sealed record CorporateRequestDetailDto(
 
 public sealed record CorporateRequestListCriteria(
     int PageNumber, int PageSize, RequestStatus? Status, RequestType? RequestType,
-    DateTimeOffset? CreatedFrom, DateTimeOffset? CreatedTo, string SortBy, SortDirection SortDirection);
+    DateTimeOffset? CreatedFrom, DateTimeOffset? CreatedTo, string? SearchTerm, string SortBy, SortDirection SortDirection);
+
+public static class CorporateRequestSearch
+{
+    public const int MaxLength = 100;
+
+    public static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
 
 public static class CorporateRequestAuditActions
 {

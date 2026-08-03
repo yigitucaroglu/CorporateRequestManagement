@@ -27,6 +27,8 @@ internal sealed class CorporateRequestReadRepository(ApplicationDbContext contex
         if (criteria.RequestType.HasValue) query = query.Where(request => request.RequestType == criteria.RequestType.Value);
         if (criteria.CreatedFrom.HasValue) query = query.Where(request => request.CreatedDate >= criteria.CreatedFrom.Value);
         if (criteria.CreatedTo.HasValue) query = query.Where(request => request.CreatedDate <= criteria.CreatedTo.Value);
+        string? searchTerm = CorporateRequestSearch.Normalize(criteria.SearchTerm);
+        if (searchTerm is not null) query = query.Where(request => request.Title.Contains(searchTerm) || request.Description.Contains(searchTerm));
         int totalCount = await query.CountAsync(cancellationToken);
         bool descending = criteria.SortDirection == SortDirection.Descending;
         query = criteria.SortBy.ToLowerInvariant() switch

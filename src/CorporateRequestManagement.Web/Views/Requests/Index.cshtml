@@ -1,0 +1,69 @@
+@model RequestListPage
+@{
+    ViewData["Title"] = "Taleplerim";
+    bool hasFilters = Model.Query.Status.HasValue || Model.Query.RequestType.HasValue || Model.Query.CreatedFrom.HasValue || Model.Query.CreatedTo.HasValue || Model.Query.SortBy != "createdDate" || Model.Query.SortDirection != "Descending";
+    var pagination = new PaginationViewModel(
+        Model.Result.PageNumber, Model.Result.PageSize, Model.Result.TotalCount, Model.Result.TotalPages,
+        Model.Result.HasPreviousPage, Model.Result.HasNextPage,
+        new Dictionary<string, string?>
+        {
+            ["Status"] = Model.Query.Status.HasValue ? ((int)Model.Query.Status.Value).ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
+            ["RequestType"] = Model.Query.RequestType?.ToString(),
+            ["CreatedFrom"] = Model.Query.CreatedFrom?.ToString("O"),
+            ["CreatedTo"] = Model.Query.CreatedTo?.ToString("O"),
+            ["SearchTerm"] = Model.Query.SearchTerm,
+            ["SortBy"] = Model.Query.SortBy,
+            ["SortDirection"] = Model.Query.SortDirection,
+            ["PageSize"] = Model.Query.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
+}
+<div class="crm-page-head">
+    <div><h2>Taleplerim</h2><p>@Model.Result.TotalCount talep · Güncel durumları filtreleyin ve takip edin.</p></div>
+</div>
+<div class="crm-request-toolbar">
+    <form method="get" class="crm-search-form crm-request-toolbar__search" role="search">
+        <input type="hidden" name="PageNumber" value="1" /><input type="hidden" name="PageSize" value="@Model.Query.PageSize" />
+        <input type="hidden" name="Status" value="@(Model.Query.Status.HasValue?(int)Model.Query.Status.Value:null)" /><input type="hidden" name="RequestType" value="@Model.Query.RequestType" />
+        <input type="hidden" name="CreatedFrom" value="@Model.Query.CreatedFrom?.ToString("O")" /><input type="hidden" name="CreatedTo" value="@Model.Query.CreatedTo?.ToString("O")" />
+        <input type="hidden" name="SortBy" value="@Model.Query.SortBy" /><input type="hidden" name="SortDirection" value="@Model.Query.SortDirection" />
+        <label class="crm-visually-hidden" for="request-search">Talep ara</label><input id="request-search" name="SearchTerm" value="@Model.Query.SearchTerm" maxlength="100" placeholder="Talep başlığı veya açıklamasında ara" />
+        <button class="crm-btn crm-btn-secondary" type="submit" aria-label="Talep ara">Ara</button>
+    </form>
+    <div class="crm-actions crm-request-toolbar__actions"><button class="crm-btn crm-btn-secondary" type="button" data-crm-filter-toggle aria-expanded="@(hasFilters.ToString().ToLowerInvariant())" aria-controls="request-filters">Filtreler @if (hasFilters) { <span class="crm-filter-dot" aria-label="Aktif filtre var"></span> }</button><a class="crm-btn crm-btn-primary" asp-action="Create">Yeni Talep</a></div>
+</div>
+<div id="request-filters" class="crm-filter-panel" data-crm-filter-panel hidden="@(!hasFilters)">
+    <form method="get" class="crm-filter">
+        <input type="hidden" name="PageNumber" value="1" /><input type="hidden" name="PageSize" value="@Model.Query.PageSize" /><input type="hidden" name="SearchTerm" value="@Model.Query.SearchTerm" />
+        <div><label for="request-status">Durum</label><select id="request-status" name="Status"><option value="">Tümü</option>@foreach (var status in Enum.GetValues<RequestStatusContract>()) { <option value="@((int)status)" selected="@(Model.Query.Status == status)">@UiDisplay.Status(status).Label</option> }</select></div>
+        <div><label for="request-type">Talep Türü</label><select id="request-type" name="RequestType"><option value="">Tümü</option>@foreach (var type in Enum.GetValues<RequestTypeContract>()) { <option value="@type" selected="@(Model.Query.RequestType == type)">@UiDisplay.Type(type)</option> }</select></div>
+        <div><label for="created-from">Başlangıç</label><input id="created-from" type="date" name="CreatedFrom" value="@Model.Query.CreatedFrom?.ToString("yyyy-MM-dd")" /></div>
+        <div><label for="created-to">Bitiş</label><input id="created-to" type="date" name="CreatedTo" value="@Model.Query.CreatedTo?.ToString("yyyy-MM-dd")" /></div>
+        <div><label for="sort-by">Sıralama</label><select id="sort-by" name="SortBy"><option value="createdDate" selected="@(Model.Query.SortBy == "createdDate")">Oluşturma</option><option value="updatedDate" selected="@(Model.Query.SortBy == "updatedDate")">Güncelleme</option><option value="title" selected="@(Model.Query.SortBy == "title")">Başlık</option><option value="amount" selected="@(Model.Query.SortBy == "amount")">Tutar</option><option value="status" selected="@(Model.Query.SortBy == "status")">Durum</option></select></div>
+        <div><label for="sort-direction">Yön</label><select id="sort-direction" name="SortDirection"><option value="Descending" selected="@(Model.Query.SortDirection == "Descending")">Azalan</option><option value="Ascending" selected="@(Model.Query.SortDirection == "Ascending")">Artan</option></select></div>
+        <footer class="crm-filter-footer"><div class="crm-filter-actions"><a class="crm-btn crm-btn-secondary" asp-action="Index">Temizle</a><button class="crm-btn crm-btn-primary" type="submit">Filtrele</button></div></footer>
+    </form>
+</div>
+<section class="crm-card crm-table-card">
+    @if (Model.Result.Items.Count == 0)
+    {
+        @if (Model.Query.SearchTerm is not null)
+        {
+            <div class="crm-empty"><span class="crm-empty-icon" aria-hidden="true"><i class="ki-outline ki-magnifier"></i></span><h3>Aramanızla eşleşen talep bulunamadı.</h3><p>Farklı bir ifade deneyin veya arama ve filtreleri temizleyin.</p><a class="crm-btn crm-btn-secondary" asp-action="Index">Arama ve filtreleri temizle</a></div>
+        }
+        else
+        {
+            <partial name="_EmptyState" model='("Henüz bir talebiniz bulunmuyor.", "İlk talebinizi oluşturarak süreci başlatın.")' />
+        }
+    }
+    else
+    {
+        <div class="crm-table-wrap"><table class="crm-request-table"><colgroup><col class="crm-col-title" /><col class="crm-col-type" /><col class="crm-col-amount" /><col class="crm-col-status" /><col class="crm-col-date" /><col class="crm-col-actions" /></colgroup><thead><tr><th scope="col">Talep</th><th scope="col">Tür</th><th scope="col" class="crm-text-end">Tutar</th><th scope="col" class="crm-text-center">Durum</th><th scope="col">Güncelleme</th><th scope="col" class="crm-text-end">İşlemler</th></tr></thead><tbody>
+        @foreach (var item in Model.Result.Items)
+        {
+            var status = UiDisplay.Status(item.Status);
+            <tr><td data-label="Talep"><a class="crm-request-title-link" asp-action="Details" asp-route-id="@item.Id">@item.Title</a><small>#@item.Id.ToString()[..8]</small></td><td data-label="Tür">@UiDisplay.Type(item.RequestType)</td><td data-label="Tutar" class="crm-money">@(item.Amount?.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("tr-TR")) ?? "—")</td><td data-label="Durum" class="crm-text-center"><span class="crm-badge crm-badge-@status.Tone">@status.Label</span></td><td data-label="Güncelleme" class="crm-date">@item.UpdatedDate.ToString("dd.MM.yyyy")</td><td data-label="İşlemler" class="crm-text-end"><details class="crm-action-menu"><summary aria-label="@item.Title için işlemler">İşlemler <span aria-hidden="true">⋮</span></summary><div><a asp-action="Details" asp-route-id="@item.Id">Detay</a>@if (item.Status == RequestStatusContract.Draft) { <a asp-action="Edit" asp-route-id="@item.Id">Düzenle</a> }</div></details></td></tr>
+        }
+        </tbody></table></div>
+        <partial name="_Pagination" model="pagination" />
+    }
+</section>

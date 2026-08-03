@@ -24,7 +24,7 @@ public sealed class PersistenceArchitectureTests
                 && type.Name.EndsWith("Repository", StringComparison.Ordinal))
             .ToArray();
 
-        Assert.Equal(7, repositoryTypes.Length);
+        Assert.Equal(8, repositoryTypes.Length);
         Assert.All(repositoryTypes, type =>
         {
             Assert.True(type.IsNotPublic);

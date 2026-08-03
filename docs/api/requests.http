@@ -24,6 +24,10 @@ Authorization: Bearer {{accessToken}}
 GET {{api}}/api/requests?status=Draft&requestType=Equipment&createdFrom=2026-01-01T00:00:00Z&createdTo=2026-12-31T23:59:59Z
 Authorization: Bearer {{accessToken}}
 
+### Search title or description (combined with filters and server-side paging)
+GET {{api}}/api/requests?searchTerm=bilgisayar&status=Draft&pageNumber=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
 ### Detail
 GET {{api}}/api/requests/{{requestId}}
 Authorization: Bearer {{accessToken}}

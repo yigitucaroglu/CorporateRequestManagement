@@ -1,0 +1,15 @@
+@api = https://localhost:7001
+@employeeToken = REPLACE_WITH_EMPLOYEE_BEARER_TOKEN
+@managerToken = REPLACE_WITH_MANAGER_BEARER_TOKEN
+@adminToken = REPLACE_WITH_ADMIN_BEARER_TOKEN
+
+GET {{api}}/api/dashboard/employee
+Authorization: Bearer {{employeeToken}}
+
+###
+GET {{api}}/api/dashboard/manager
+Authorization: Bearer {{managerToken}}
+
+###
+GET {{api}}/api/dashboard/admin
+Authorization: Bearer {{adminToken}}

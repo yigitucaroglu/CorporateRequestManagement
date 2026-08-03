@@ -16,6 +16,9 @@ using AuthenticatedUserContract = webapp::CorporateRequestManagement.Web.Authent
 using AuthenticationContract = webapp::CorporateRequestManagement.Web.Authentication.AuthenticationContract;
 using IAuthenticatedUserApiClient = webapp::CorporateRequestManagement.Web.Authentication.IAuthenticatedUserApiClient;
 using IAuthenticationApiClient = webapp::CorporateRequestManagement.Web.Authentication.IAuthenticationApiClient;
+using IRequestsApiClient = webapp::CorporateRequestManagement.Web.Api.IRequestsApiClient;
+using IApprovalsApiClient = webapp::CorporateRequestManagement.Web.Api.IApprovalsApiClient;
+using IDashboardApiClient = webapp::CorporateRequestManagement.Web.Api.IDashboardApiClient;
 using WebProgram = webapp::Program;
 
 public sealed class AuthenticationWebTests : IClassFixture<AuthenticationWebFactory>
@@ -153,9 +156,54 @@ public sealed class AuthenticationWebTests : IClassFixture<AuthenticationWebFact
         Assert.Equal("/", response.Headers.Location?.OriginalString);
     }
 
+    [Fact]
+    public async Task Rejected_server_session_clears_local_authentication_and_login_page_terminates_redirect_chain()
+    {
+        factory.Authentication.Result = SuccessfulAuthentication();
+        using HttpClient client = factory.CreateSecureClient();
+        _ = await PostLoginAsync(client, "/");
+        factory.Authentication.Result = null;
+
+        using HttpResponseMessage protectedResponse = await client.GetAsync("/");
+        using HttpResponseMessage loginResponse = await client.GetAsync(protectedResponse.Headers.Location);
+        string headers = string.Join('\n', protectedResponse.Headers.Select(static pair => $"{pair.Key}:{string.Join(';', pair.Value)}"));
+
+        Assert.Equal(HttpStatusCode.Redirect, protectedResponse.StatusCode);
+        Assert.Equal("/account/login", protectedResponse.Headers.Location?.OriginalString);
+        Assert.Contains("__Host-Crm.Web.Auth", headers, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        Assert.Null(loginResponse.Headers.Location);
+    }
+
+    [Fact]
+    public async Task Logout_post_remains_antiforgery_protected_and_clears_local_authentication()
+    {
+        factory.Authentication.Result = SuccessfulAuthentication();
+        using HttpClient client = factory.CreateSecureClient();
+        _ = await PostLoginAsync(client, "/");
+        string antiforgery = await GetAntiforgeryTokenFromPageAsync(client, "/");
+        using var body = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = antiforgery });
+
+        using HttpResponseMessage logout = await client.PostAsync("/account/logout", body);
+        using HttpResponseMessage protectedResponse = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
+        Assert.Equal("/account/login", logout.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.Redirect, protectedResponse.StatusCode);
+        Assert.Equal("/account/login", protectedResponse.Headers.Location?.AbsolutePath);
+    }
+
     private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
     {
         string html = await client.GetStringAsync("/account/login");
+        Match match = Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"");
+        Assert.True(match.Success);
+        return WebUtility.HtmlDecode(match.Groups[1].Value);
+    }
+
+    private static async Task<string> GetAntiforgeryTokenFromPageAsync(HttpClient client, string path)
+    {
+        string html = await client.GetStringAsync(path);
         Match match = Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"");
         Assert.True(match.Success);
         return WebUtility.HtmlDecode(match.Groups[1].Value);
@@ -197,6 +245,9 @@ public sealed class AuthenticationWebFactory : WebApplicationFactory<WebProgram>
     public const string AccessToken = "test-access-token-never-for-browser";
     public const string RefreshToken = "test-refresh-token-never-for-browser";
     public FakeAuthenticationApiClient Authentication { get; } = new();
+    public FakeRequestsApiClient Requests { get; } = new();
+    public FakeApprovalsApiClient Approvals { get; } = new();
+    public FakeDashboardApiClient Dashboard { get; } = new();
 
     public HttpClient CreateSecureClient() => CreateClient(new WebApplicationFactoryClientOptions
     {
@@ -213,8 +264,14 @@ public sealed class AuthenticationWebFactory : WebApplicationFactory<WebProgram>
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
             services.RemoveAll<IAuthenticationApiClient>();
             services.RemoveAll<IAuthenticatedUserApiClient>();
+            services.RemoveAll<IRequestsApiClient>();
+            services.RemoveAll<IApprovalsApiClient>();
+            services.RemoveAll<IDashboardApiClient>();
             services.AddSingleton<IAuthenticationApiClient>(Authentication);
-            services.AddSingleton<IAuthenticatedUserApiClient, FakeAuthenticatedUserApiClient>();
+            services.AddSingleton<IAuthenticatedUserApiClient>(new FakeAuthenticatedUserApiClient(Authentication));
+            services.AddSingleton<IRequestsApiClient>(Requests);
+            services.AddSingleton<IApprovalsApiClient>(Approvals);
+            services.AddSingleton<IDashboardApiClient>(Dashboard);
         });
     }
 }
@@ -227,11 +284,61 @@ public sealed class FakeAuthenticationApiClient : IAuthenticationApiClient
         Task.FromResult(Result is null
             ? new ApiCallResult(FailureStatusCode, null)
             : new ApiCallResult(HttpStatusCode.OK, Result));
-    public Task<ApiCallResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    public Task<ApiCallResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default) => Task.FromResult(new ApiCallResult(HttpStatusCode.Unauthorized, null));
     public Task RevokeAsync(string refreshToken, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
-public sealed class FakeAuthenticatedUserApiClient : IAuthenticatedUserApiClient
+public sealed class FakeAuthenticatedUserApiClient(FakeAuthenticationApiClient authentication) : IAuthenticatedUserApiClient
 {
-    public Task<AuthenticatedUserContract?> GetCurrentUserAsync(CancellationToken cancellationToken = default) => Task.FromResult<AuthenticatedUserContract?>(new AuthenticatedUserContract());
+    public Task<AuthenticatedUserContract?> GetCurrentUserAsync(CancellationToken cancellationToken = default) => Task.FromResult(authentication.Result?.User);
+}
+
+public sealed class FakeRequestsApiClient : IRequestsApiClient
+{
+    public IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.RequestListItemContract> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+    public webapp::CorporateRequestManagement.Web.Api.RequestListQuery? LastQuery { get; private set; }
+    public webapp::CorporateRequestManagement.Web.Api.RequestDetailContract? Detail { get; set; }
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.RequestListItemContract>>> GetMineAsync(webapp::CorporateRequestManagement.Web.Api.RequestListQuery query, CancellationToken cancellationToken = default) { LastQuery=query;int total=TotalCount==0?Items.Count:TotalCount;int pages=total==0?0:(int)Math.Ceiling(total/(double)query.PageSize);var page=new webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.RequestListItemContract>(Items,total,query.PageNumber,query.PageSize,pages,query.PageNumber>1,query.PageNumber<pages);return Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.RequestListItemContract>>(HttpStatusCode.OK,page,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty)); }
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Detail is null ? Fail<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>() : Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>(HttpStatusCode.OK,Detail,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>> CreateAsync(string title,string description,webapp::CorporateRequestManagement.Web.Api.RequestTypeContract type,decimal? amount,CancellationToken cancellationToken=default)=>Fail<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>> UpdateAsync(Guid id,string title,string description,webapp::CorporateRequestManagement.Web.Api.RequestTypeContract type,decimal? amount,string rowVersion,CancellationToken cancellationToken=default)=>Fail<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>> SubmitAsync(Guid id,string rowVersion,CancellationToken cancellationToken=default)=>Fail<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>> CancelAsync(Guid id,string rowVersion,CancellationToken cancellationToken=default)=>Fail<webapp::CorporateRequestManagement.Web.Api.RequestDetailContract>();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.ApprovalHistoryContract>>> GetHistoryAsync(Guid id,CancellationToken cancellationToken=default)=>Fail<IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.ApprovalHistoryContract>>();
+    private static Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<T>> Fail<T>() => Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<T>(HttpStatusCode.NotFound, default, webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
+}
+public sealed class FakeDashboardApiClient : IDashboardApiClient
+{
+    public IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract> EmployeeTrend { get; set; } = DailyTrend();
+    public IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract> ManagerTrend { get; set; } = DailyTrend();
+    public IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract> AdminTrend { get; set; } = MonthlyTrend();
+    private static webapp::CorporateRequestManagement.Web.Api.WebApiResult<T> Ok<T>(T value) => new(HttpStatusCode.OK,value,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty);
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.EmployeeDashboardContract>> GetEmployeeAsync(CancellationToken cancellationToken=default)
+    {
+        var value=new webapp::CorporateRequestManagement.Web.Api.EmployeeDashboardContract(6,2,1,1,Periods(),EmployeeTrend,Statuses(),[]);return Task.FromResult(Ok(value));
+    }
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ManagerDashboardContract>> GetManagerAsync(CancellationToken cancellationToken=default)
+    {
+        var value=new webapp::CorporateRequestManagement.Web.Api.ManagerDashboardContract(0,0,0,0,Periods(),ManagerTrend,[new("Approved",1),new("Rejected",1)],[],[]);return Task.FromResult(Ok(value));
+    }
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.AdminDashboardContract>> GetAdminAsync(CancellationToken cancellationToken=default)
+    {
+        var value=new webapp::CorporateRequestManagement.Web.Api.AdminDashboardContract(0,0,0,0,Periods(),AdminTrend,Statuses(),[new("Operasyon",2)],[]);return Task.FromResult(Ok(value));
+    }
+    private static IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.DashboardPeriodContract> Periods()=>[new("today",0,0),new("month",0,0),new("year",0,0)];
+    private static List<webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract> DailyTrend()=>Enumerable.Range(0,30).Select(i=>new webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract(new DateOnly(2026,7,5).AddDays(i).ToString("yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture),i==0?1:0,0)).ToList();
+    private static List<webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract> MonthlyTrend()=>Enumerable.Range(0,12).Select(i=>new webapp::CorporateRequestManagement.Web.Api.DashboardTrendPointContract(new DateOnly(2025,9,1).AddMonths(i).ToString("yyyy-MM",System.Globalization.CultureInfo.InvariantCulture),i==0?1:0,0)).ToList();
+    private static IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.DashboardDistributionItemContract> Statuses()=>[new("Draft",1),new("PendingManagerApproval",1),new("PendingAdminApproval",1),new("Approved",1),new("Rejected",1),new("Cancelled",1)];
+}
+public sealed class FakeApprovalsApiClient : IApprovalsApiClient
+{
+    public IReadOnlyList<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+    public bool? LastAdmin { get; private set; }
+    public webapp::CorporateRequestManagement.Web.Api.ApprovalListQuery? LastQuery { get; private set; }
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>>> GetQueueAsync(bool admin,webapp::CorporateRequestManagement.Web.Api.ApprovalListQuery query,CancellationToken cancellationToken=default){LastAdmin=admin;LastQuery=query;int total=TotalCount==0?Items.Count:TotalCount;int pages=total==0?0:(int)Math.Ceiling(total/(double)query.PageSize);var page=new webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>(Items,total,query.PageNumber,query.PageSize,pages,query.PageNumber>1,query.PageNumber<pages);return Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>>(HttpStatusCode.OK,page,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));}
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> GetDetailAsync(bool admin,Guid id,CancellationToken cancellationToken=default)=>Fail();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> DecideAsync(bool admin,Guid id,bool approve,string rowVersion,string? reason,CancellationToken cancellationToken=default)=>Fail();
+    private static Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> Fail()=>Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>(HttpStatusCode.NotFound,null,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
 }

@@ -55,6 +55,13 @@ internal sealed class ApprovalReadRepository(ApplicationDbContext context) : IAp
         if (criteria.RequestType.HasValue) query = query.Where(x => x.RequestType == criteria.RequestType.Value);
         if (criteria.CreatedFrom.HasValue) query = query.Where(x => x.CreatedDate >= criteria.CreatedFrom.Value);
         if (criteria.CreatedTo.HasValue) query = query.Where(x => x.CreatedDate <= criteria.CreatedTo.Value);
+        if (criteria.SearchTerm is not null)
+        {
+            string search = criteria.SearchTerm;
+            query = managerScope
+                ? query.Where(x => x.Title.Contains(search) || x.RequesterName.Contains(search))
+                : query.Where(x => x.Title.Contains(search) || x.RequesterName.Contains(search) || x.DepartmentName.Contains(search));
+        }
         int total = await query.CountAsync(ct);
         bool desc = criteria.SortDirection == SortDirection.Descending;
         query = criteria.SortBy.ToLowerInvariant() switch

@@ -1,0 +1,4 @@
+<div class="crm-feedback-stack" aria-live="polite">
+@foreach (var item in new[] { ("Success", "success"), ("Error", "danger"), ("Warning", "warning"), ("Info", "info") })
+{ if (TempData[item.Item1] is string message) { <div class="crm-alert crm-alert-@item.Item2" role="alert"><span>@message</span><button type="button" data-dismiss-alert aria-label="Bildirimi kapat">×</button></div> } }
+</div>

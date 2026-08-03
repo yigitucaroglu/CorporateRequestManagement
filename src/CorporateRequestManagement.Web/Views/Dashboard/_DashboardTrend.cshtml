@@ -1,0 +1,27 @@
+@model DashboardTrendViewModel
+@{
+    var chartData = new
+    {
+        categories = Model.Points.Select(x => x.PeriodKey).ToArray(),
+        axisLabels = Model.Points.Select(x => x.AxisLabel).ToArray(),
+        tooltipLabels = Model.Points.Select(x => x.TooltipLabel).ToArray(),
+        series = new[] { new { name = Model.Primary, data = Model.Points.Select(x => x.PrimaryCount).ToArray() } }
+            .Concat(string.IsNullOrEmpty(Model.Secondary) ? [] : [new { name = Model.Secondary, data = Model.Points.Select(x => x.SecondaryCount).ToArray() }]).ToArray()
+    };
+    int primaryTotal = Model.Points.Sum(x => x.PrimaryCount);
+    int secondaryTotal = Model.Points.Sum(x => x.SecondaryCount);
+}
+<section class="crm-card crm-chart-card crm-request-chart" aria-labelledby="trend-title">
+  <div class="crm-section-head"><div><h3 id="trend-title">@Model.Title</h3><p>@Model.Subtitle</p></div><span class="crm-chart-period">@Model.PeriodLabel</span></div>
+  @if(!Model.IsValid){<div class="crm-chart-empty">Grafik verisi şu anda görüntülenemiyor.</div>}
+  else{
+    <div class="crm-apex-chart crm-request-apex-chart" data-request-chart role="img" aria-label="@Model.Title"></div>
+    <script type="application/json" data-request-chart-data>@Json.Serialize(chartData)</script>
+    @if(Model.Points.All(x=>x.PrimaryCount==0&&x.SecondaryCount==0)){<div class="crm-chart-empty">@Model.SummaryPeriod talep hareketi bulunmuyor; grafik sıfır değerlerini göstermektedir.</div>}
+    <div class="crm-chart-legend">
+      <span><i class="crm-legend-primary"></i>@Model.Primary</span>
+      @if(!string.IsNullOrEmpty(Model.Secondary)){<span><i class="crm-legend-secondary"></i>@Model.Secondary</span>}
+    </div>
+    <p class="crm-chart-summary"><span>@Model.SummaryPeriod @primaryTotal @Model.Primary.ToLowerInvariant()</span>@if(!string.IsNullOrEmpty(Model.Secondary)){<span> · @secondaryTotal @Model.Secondary.ToLowerInvariant()</span>}</p>
+  }
+</section>

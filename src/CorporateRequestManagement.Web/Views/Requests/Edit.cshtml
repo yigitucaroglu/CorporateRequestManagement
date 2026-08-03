@@ -1,0 +1,12 @@
+@model RequestInputModel
+@{ ViewData["Title"] = "Talebi Düzenle"; }
+<div class="crm-form-page">
+    <div class="crm-form-page__container">
+        <div class="crm-page-head crm-form-page__heading"><div><h2>Talebi Düzenle</h2><p>Taslak bilgilerini güncelleyin. Eşzamanlı değişikliklerde kayıt üzerine yazılmaz.</p></div></div>
+        <form method="post" class="crm-card crm-form-card crm-form-card--premium" data-submit-form>
+            <input asp-for="RowVersion" type="hidden" />
+            <partial name="_Form" model="Model" />
+            <div class="crm-form-actions"><a class="crm-btn crm-btn-secondary" asp-action="Details" asp-route-id="@Model.Id">Vazgeç</a><button class="crm-btn crm-btn-primary" data-submit-button>Değişiklikleri Kaydet</button></div>
+        </form>
+    </div>
+</div>

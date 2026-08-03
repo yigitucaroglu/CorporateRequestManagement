@@ -9,5 +9,5 @@ public sealed record ApproveRequest(string RowVersion);
 public sealed record RejectRequest(string RowVersion, string Reason);
 public sealed record GetPendingApprovalsRequest(int PageNumber = PageRequest.DefaultPage, int PageSize = PageRequest.DefaultPageSize,
     Guid? DepartmentId = null, RequestType? RequestType = null, DateTimeOffset? CreatedFrom = null,
-    DateTimeOffset? CreatedTo = null, string SortBy = ApprovalSortFields.SubmittedDate,
+    DateTimeOffset? CreatedTo = null, string? SearchTerm = null, string SortBy = ApprovalSortFields.SubmittedDate,
     SortDirection SortDirection = SortDirection.Ascending);

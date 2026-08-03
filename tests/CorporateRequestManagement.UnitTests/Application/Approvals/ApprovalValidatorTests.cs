@@ -59,4 +59,26 @@ public sealed class ApprovalValidatorTests
         Assert.True((await ((IValidator<GetAdminApprovalQueueQuery>)new GetAdminApprovalQueueQueryValidator()).ValidateAsync(
             new(SortBy: ApprovalSortFields.Amount, SortDirection: SortDirection.Descending))).IsValid);
     }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("normal arama", true)]
+    public async Task Queue_search_should_accept_optional_and_normal_values(string? search, bool expected)
+    {
+        var result = await ((IValidator<GetManagerApprovalQueueQuery>)new GetManagerApprovalQueueQueryValidator())
+            .ValidateAsync(new(SearchTerm: search));
+        Assert.Equal(expected, result.IsValid);
+    }
+
+    [Fact]
+    public async Task Queue_search_should_enforce_shared_maximum()
+    {
+        Assert.True((await ((IValidator<GetAdminApprovalQueueQuery>)new GetAdminApprovalQueueQueryValidator())
+            .ValidateAsync(new(SearchTerm: new string('a', ApprovalSearch.MaxLength)))).IsValid);
+        Assert.False((await ((IValidator<GetAdminApprovalQueueQuery>)new GetAdminApprovalQueueQueryValidator())
+            .ValidateAsync(new(SearchTerm: new string('a', ApprovalSearch.MaxLength + 1)))).IsValid);
+        Assert.Null(ApprovalSearch.Normalize("   "));
+    }
 }

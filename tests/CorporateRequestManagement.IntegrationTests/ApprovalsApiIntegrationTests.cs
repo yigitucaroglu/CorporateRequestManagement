@@ -50,6 +50,34 @@ public sealed class ApprovalsApiIntegrationTests(SqlServerDatabaseFixture fixtur
     }
 
     [Fact]
+    public async Task Dashboard_trends_should_expose_role_specific_canonical_granularity_and_exact_role_authorization()
+    {
+        using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail);
+        using HttpClient manager = await ClientAsync(DevelopmentSeedData.ManagerEmail);
+        using HttpClient admin = await ClientAsync(DevelopmentSeedData.AdminEmail);
+
+        JsonElement employeeTrend = (await employee.GetFromJsonAsync<JsonElement>("/api/dashboard/employee")).GetProperty("trend");
+        JsonElement managerTrend = (await manager.GetFromJsonAsync<JsonElement>("/api/dashboard/manager")).GetProperty("trend");
+        JsonElement adminTrend = (await admin.GetFromJsonAsync<JsonElement>("/api/dashboard/admin")).GetProperty("trend");
+
+        AssertCanonicalTrend(employeeTrend, 30, "^\\d{4}-\\d{2}-\\d{2}$");
+        AssertCanonicalTrend(managerTrend, 30, "^\\d{4}-\\d{2}-\\d{2}$");
+        AssertCanonicalTrend(adminTrend, 12, "^\\d{4}-\\d{2}$");
+        Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/dashboard/manager")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.GetAsync("/api/dashboard/admin")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync("/api/dashboard/employee")).StatusCode);
+    }
+
+    private static void AssertCanonicalTrend(JsonElement trend, int expectedCount, string pattern)
+    {
+        string[] keys = trend.EnumerateArray().Select(x => x.GetProperty("periodKey").GetString()!).ToArray();
+        Assert.Equal(expectedCount, keys.Length);
+        Assert.All(keys, key => Assert.Matches(pattern, key));
+        Assert.Equal(keys.OrderBy(static key => key, StringComparer.Ordinal), keys);
+        Assert.All(trend.EnumerateArray(), point => { Assert.Equal(JsonValueKind.Number, point.GetProperty("primaryCount").ValueKind); Assert.Equal(JsonValueKind.Number, point.GetProperty("secondaryCount").ValueKind); });
+    }
+
+    [Fact]
     public async Task Expense_above_threshold_should_flow_from_scoped_manager_to_admin_with_history_and_audits()
     {
         using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail);

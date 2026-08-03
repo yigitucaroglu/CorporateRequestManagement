@@ -68,6 +68,38 @@ public sealed class CorporateRequestValidatorTests
     }
 
     [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("normal arama", true)]
+    public async Task List_WhenSearchIsOptionalOrNormal_ShouldPass(string? searchTerm, bool expected)
+    {
+        var result = await ((IValidator<GetMyCorporateRequestsQuery>)new GetMyCorporateRequestsQueryValidator())
+            .ValidateAsync(new(SearchTerm: searchTerm));
+        Assert.Equal(expected, result.IsValid);
+    }
+
+    [Fact]
+    public async Task List_WhenTrimmedSearchIsAtBoundary_ShouldPassAndWhenOverBoundaryShouldFail()
+    {
+        var validator = new GetMyCorporateRequestsQueryValidator();
+        var boundary = new GetMyCorporateRequestsQuery(SearchTerm: "  " + new string('a', CorporateRequestSearch.MaxLength) + "  ");
+        var overBoundary = new GetMyCorporateRequestsQuery(SearchTerm: new string('a', CorporateRequestSearch.MaxLength + 1));
+        Assert.True((await validator.ValidateAsync(boundary)).IsValid);
+        Assert.False((await validator.ValidateAsync(overBoundary)).IsValid);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData("  bilgisayar  ", "bilgisayar")]
+    public void Search_normalization_should_trim_and_collapse_blank_values(string? value, string? expected)
+    {
+        Assert.Equal(expected, CorporateRequestSearch.Normalize(value));
+    }
+
+    [Theory]
     [InlineData(0, 20)] [InlineData(1, 0)] [InlineData(1, 101)]
     public async Task List_WhenPagingInvalid_ShouldFail(int page, int size)
     {

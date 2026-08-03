@@ -9,13 +9,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace CorporateRequestManagement.Web.Controllers;
 
 [Route("account")]
-public sealed class AccountController(IAuthenticationApiClient api, IUserTokenStore tokenStore) : Controller
+public sealed class AccountController(IAuthenticationApiClient api, IUserTokenStore tokenStore, ILocalAuthenticationState localAuthenticationState) : Controller
 {
     [HttpGet("login"), AllowAnonymous]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null, CancellationToken cancellationToken = default)
     {
-        if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Dashboard");
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            if (await localAuthenticationState.HasValidSessionAsync(cancellationToken)) return RedirectToAction("Index", "Dashboard");
+            await localAuthenticationState.ClearAsync(cancellationToken);
+        }
         return View(new LoginViewModel { ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
     }
 
@@ -44,7 +48,7 @@ public sealed class AccountController(IAuthenticationApiClient api, IUserTokenSt
     {
         WebUserSession? session = await tokenStore.GetAsync(cancellationToken);
         try { if (session is not null) await api.RevokeAsync(session.RefreshToken, cancellationToken); } catch (HttpRequestException) { }
-        finally { await tokenStore.ClearAsync(cancellationToken); await HttpContext.SignOutAsync(WebAuthenticationDefaults.Scheme); HttpContext.Session.Clear(); }
+        finally { await localAuthenticationState.ClearAsync(cancellationToken); }
         return RedirectToAction(nameof(Login));
     }
 

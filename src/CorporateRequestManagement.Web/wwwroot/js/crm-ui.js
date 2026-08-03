@@ -1,0 +1,17 @@
+(() => { "use strict";
+ const body=document.body,sidebar=document.querySelector(".crm-sidebar"),overlay=document.querySelector(".crm-overlay");
+ const closeMenu=()=>{sidebar?.classList.remove("is-open");overlay?.classList.remove("is-open");body.style.overflow="";};
+ document.querySelector("[data-sidebar-open]")?.addEventListener("click",()=>{sidebar?.classList.add("is-open");overlay?.classList.add("is-open");body.style.overflow="hidden";});
+ document.querySelectorAll("[data-sidebar-close]").forEach(x=>x.addEventListener("click",closeMenu));
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMenu();document.querySelectorAll(".crm-modal:not([hidden])").forEach(x=>x.hidden=true);}});
+ document.querySelector("[data-password-toggle]")?.addEventListener("click",e=>{const input=document.getElementById("Password");if(!input)return;const show=input.type==="password";input.type=show?"text":"password";e.currentTarget.textContent=show?"Gizle":"Göster";});
+ document.querySelectorAll("[data-submit-form]").forEach(form=>form.addEventListener("submit",()=>{const button=form.querySelector("[data-submit-button]");if(button){button.disabled=true;button.classList.add("is-loading");}}));
+ document.querySelectorAll("form[data-confirm]").forEach(form=>form.addEventListener("submit",e=>{if(!window.confirm(form.dataset.confirm))e.preventDefault();}));
+ document.querySelectorAll("[data-dismiss-alert]").forEach(x=>x.addEventListener("click",()=>x.closest(".crm-alert")?.remove()));
+ document.addEventListener("click",event=>{const target=event.target;const filterButton=target instanceof Element?target.closest("[data-crm-filter-toggle]"):null;if(!filterButton)return;const panelId=filterButton.getAttribute("aria-controls");const filterPanel=panelId?document.getElementById(panelId):null;if(!filterPanel?.classList.contains("crm-filter-panel"))return;filterPanel.hidden=!filterPanel.hidden;filterButton.setAttribute("aria-expanded",String(!filterPanel.hidden));if(!filterPanel.hidden)filterPanel.querySelector("select,input")?.focus();});
+ document.addEventListener("click",event=>{document.querySelectorAll("details.crm-action-menu[open]").forEach(menu=>{if(!menu.contains(event.target))menu.removeAttribute("open");});});
+ document.querySelectorAll("[data-count-input]").forEach(input=>{const output=input.parentElement?.querySelector("[data-count-output]");const update=()=>{if(output)output.textContent=String(input.value.length);};input.addEventListener("input",update);update();});
+ const type=document.querySelector("[data-request-type]"),amount=document.querySelector("[data-amount-field]");const amountState=()=>{const option=type?.selectedOptions[0];if(amount)amount.hidden=option?.dataset.requiresAmount==="false";};type?.addEventListener("change",amountState);amountState();
+ document.querySelectorAll("[data-modal-open]").forEach(x=>x.addEventListener("click",()=>{const modal=document.getElementById(x.dataset.modalOpen);if(modal){modal.hidden=false;modal.querySelector("textarea,button")?.focus();}}));
+ document.querySelectorAll("[data-modal-close]").forEach(x=>x.addEventListener("click",()=>{const modal=x.closest(".crm-modal");if(modal)modal.hidden=true;}));
+})();

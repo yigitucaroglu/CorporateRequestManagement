@@ -1,0 +1,3 @@
+@model (IReadOnlyList<DashboardPeriodContract> Periods, string Primary, string Secondary)
+@{ var labels=new Dictionary<string,string>{{"today","Bugün"},{"month","Bu Ay"},{"year","Bu Yıl"}}; }
+<section class="crm-card crm-period-card" aria-labelledby="period-title"><div class="crm-period-heading"><div><h3 id="period-title">Dönem Özeti</h3><p>Güncel hareketler</p></div><i class="ki-outline ki-calendar-8" aria-hidden="true"></i></div><div class="crm-period-grid">@foreach(var period in Model.Periods){<article><h4>@labels.GetValueOrDefault(period.PeriodKey,"Bilinmiyor")</h4><dl><div><dt>@Model.Primary</dt><dd>@period.PrimaryCount</dd></div><div><dt>@Model.Secondary</dt><dd>@period.SecondaryCount</dd></div></dl></article>}</div></section>

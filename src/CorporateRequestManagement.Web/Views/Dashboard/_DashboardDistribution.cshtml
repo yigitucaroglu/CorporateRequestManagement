@@ -1,0 +1,12 @@
+@model (IReadOnlyList<DashboardDistributionItemContract> Items, string Title)
+@{
+  var visible=Model.Items.Where(x=>x.Count>0).Select(x=>new{Label=Model.Title=="Departman Dağılımı"?x.Label:UiDisplay.AnalyticsLabel(x.Label),x.Count}).ToArray();
+  int total=visible.Sum(x=>x.Count);
+  var chartData=new{labels=visible.Select(x=>x.Label).ToArray(),series=visible.Select(x=>x.Count).ToArray()};
+}
+<section class="crm-card crm-chart-card crm-distribution" aria-labelledby="distribution-title"><div class="crm-section-head"><div><h3 id="distribution-title">@Model.Title</h3><p>Durumlara göre talep adetleri</p></div></div>
+@if(total==0){<div class="crm-chart-empty">Dağılım verisi bulunmuyor.</div>}else{
+  <div class="crm-apex-chart crm-distribution-apex-chart" data-distribution-chart role="img" aria-label="@Model.Title"></div>
+  <script type="application/json" data-distribution-chart-data>@Json.Serialize(chartData)</script>
+  <ul class="crm-distribution-breakdown" aria-label="@Model.Title">@foreach(var item in visible){decimal percentage=decimal.Round(item.Count*100m/total,1);<li><span class="crm-distribution-dot" aria-hidden="true"></span><span>@item.Label<small>%@percentage.ToString("0.#",System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))</small></span><strong>@item.Count</strong></li>}</ul>
+}</section>

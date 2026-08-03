@@ -50,6 +50,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 });
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("Dashboard.Employee", policy => policy.RequireAuthenticatedUser().RequireRole("Employee"));
+    options.AddPolicy("Requests.SelfService", policy => policy.RequireAuthenticatedUser().RequireRole("Employee", "Manager"));
     options.AddPolicy("Requests.ManagerApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Manager"));
     options.AddPolicy("Requests.AdminApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
 });

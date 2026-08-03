@@ -1,0 +1,65 @@
+@model PaginationViewModel
+@if (Model.TotalCount > 0)
+{
+    var routes = new Dictionary<string, string?>(Model.QueryParameters, StringComparer.OrdinalIgnoreCase);
+    <footer class="crm-list-footer">
+        <div class="crm-list-meta">
+            <span>Toplam @Model.TotalCount kayıt</span>
+            <form method="get" class="crm-page-size-form">
+                @foreach (var query in Model.QueryParameters.Where(item => !item.Key.Equals("PageNumber", StringComparison.OrdinalIgnoreCase) && !item.Key.Equals("PageSize", StringComparison.OrdinalIgnoreCase)))
+                {
+                    <input type="hidden" name="@query.Key" value="@query.Value" />
+                }
+                <input type="hidden" name="PageNumber" value="1" />
+                <label for="crm-page-size">Sayfa başına</label>
+                <select id="crm-page-size" name="PageSize">
+                    @foreach (int size in PaginationViewModel.AllowedPageSizes)
+                    {
+                        <option value="@size" selected="@(size == Model.PageSize)">@size</option>
+                    }
+                </select>
+                <button class="crm-btn crm-btn-secondary crm-btn-small" type="submit">Uygula</button>
+            </form>
+        </div>
+        <nav class="crm-pagination" aria-label="Sayfalar">
+            @if (Model.HasPreviousPage)
+            {
+                routes["PageNumber"] = (Model.CurrentPage - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                <a asp-all-route-data="@routes" rel="prev">Önceki</a>
+            }
+            else
+            {
+                <span class="crm-page-disabled">Önceki</span>
+            }
+            @foreach (int? page in Model.PageWindow())
+            {
+                if (page.HasValue)
+                {
+                    routes["PageNumber"] = page.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (page.Value == Model.CurrentPage)
+                    {
+                        <span class="crm-page-current" aria-current="page">@(page.Value)</span>
+                    }
+                    else
+                    {
+                        <a asp-all-route-data="@routes">@(page.Value)</a>
+                    }
+                }
+                else
+                {
+                    <span class="crm-page-ellipsis" aria-hidden="true">…</span>
+                }
+            }
+            @if (Model.HasNextPage)
+            {
+                routes["PageNumber"] = (Model.CurrentPage + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                <a asp-all-route-data="@routes" rel="next">Sonraki</a>
+            }
+            else
+            {
+                <span class="crm-page-disabled">Sonraki</span>
+            }
+            <small>@Model.CurrentPage / @Model.TotalPages</small>
+        </nav>
+    </footer>
+}

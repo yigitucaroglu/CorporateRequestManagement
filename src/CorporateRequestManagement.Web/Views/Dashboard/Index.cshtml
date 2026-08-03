@@ -1,2 +1,26 @@
 @model DashboardViewModel
-@{ ViewData["Title"] = "Ana Sayfa"; }<div class="card"><div class="card-body"><h1 class="fs-2 fw-bold mb-6">Hoş geldiniz, @Model.FullName</h1><dl class="row mb-0"><dt class="col-sm-3">E-posta</dt><dd class="col-sm-9">@Model.Email</dd><dt class="col-sm-3">Rol</dt><dd class="col-sm-9"><span class="badge badge-light-primary">@Model.Role</span></dd>@if(Model.DepartmentId.HasValue){<dt class="col-sm-3">Departman</dt><dd class="col-sm-9">@Model.DepartmentId</dd>}</dl></div></div>
+@{
+  ViewData["Title"] = "Analiz Merkezi";
+  IReadOnlyList<DashboardPeriodContract> periods;
+  string primary; string secondary; string heroLabel; int heroValue; string heroText;
+  switch(Model.Analytics){case EmployeeDashboardContract e:periods=e.Periods;primary="Oluşturulan";secondary="Sonuçlanan";heroLabel="Onay bekleyen talepleriniz";heroValue=e.PendingRequests;heroText="Kendi taleplerinizin durumunu, dönem hareketlerini ve son gelişmeleri tek ekrandan izleyin.";break;case ManagerDashboardContract m:periods=m.Periods;primary="Gelen";secondary="Karar Verilen";heroLabel="Kararınızı bekleyen talepler";heroValue=m.PendingApprovals;heroText="Departmanınızdaki talep akışını ve verdiğiniz kararları güvenli yetki kapsamınızda yönetin.";break;case AdminDashboardContract a:periods=a.Periods;primary="Sisteme Gelen";secondary="Tamamlanan";heroLabel="Yönetim onayı bekleyen talepler";heroValue=a.PendingApprovals;heroText="Sistem genelindeki talep hacmini, sonuçları ve yönetim kuyruğunu bütüncül olarak takip edin.";break;default:periods=[];primary="Kayıt";secondary="Sonuç";heroLabel="Güncel durum";heroValue=0;heroText="Kurumsal talep süreçlerinizi izleyin.";break;}
+}
+<section class="crm-dashboard-shell">
+  <div class="crm-dashboard-top">
+    <header class="crm-dashboard-hero"><div class="crm-dashboard-hero__content"><span>@UiDisplay.Role(Model.Role) çalışma alanı</span><h2>@heroLabel: <strong>@heroValue</strong></h2><p>@heroText</p></div><div class="crm-dashboard-hero__actions"><span>Hoş geldiniz, @Model.FullName</span>@if (Model.Role is "Employee" or "Manager") { <a class="crm-btn crm-btn-hero" asp-controller="Requests" asp-action="Create">Yeni Talep Oluştur</a> }</div></header>
+    <partial name="_DashboardPeriods" model='(periods,primary,secondary)' />
+  </div>
+  @switch (Model.Analytics)
+  {
+    case EmployeeDashboardContract employee:
+      <partial name="_EmployeeDashboard" model="employee" />
+      break;
+    case ManagerDashboardContract manager:
+      <partial name="_ManagerDashboard" model="manager" />
+      break;
+    case AdminDashboardContract admin:
+      <partial name="_AdminDashboard" model="admin" />
+      break;
+  }
+</section>
+@section Scripts { <script src="~/js/crm-dashboard-charts.js" asp-append-version="true"></script> }

@@ -4,6 +4,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CorporateRequestManagement.Infrastructure.Persistence;
 using CorporateRequestManagement.Infrastructure.Persistence.Seeding;
+using CorporateRequestManagement.Api.Controllers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -196,6 +198,40 @@ public sealed class CorporateRequestsApiIntegrationTests(SqlServerDatabaseFixtur
     }
 
     [Fact]
+    public async Task Self_service_policy_should_allow_employee_and_manager_but_forbid_admin()
+    {
+        using HttpClient employee = await AuthenticatedClientAsync(DevelopmentSeedData.EmployeeEmail);
+        using HttpClient manager = await AuthenticatedClientAsync(DevelopmentSeedData.ManagerEmail);
+        using HttpClient admin = await AuthenticatedClientAsync(DevelopmentSeedData.AdminEmail);
+
+        Assert.Equal(HttpStatusCode.OK, (await employee.GetAsync("/api/requests?pageSize=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await manager.PostAsJsonAsync("/api/requests", new
+        {
+            title = "Manager self-service remains enabled", description = "Current product policy", requestType = 3
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync("/api/requests?pageSize=1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.PostAsJsonAsync("/api/requests", new
+        {
+            title = "Admin request must be blocked", description = "Policy enforcement", requestType = 3
+        })).StatusCode);
+    }
+
+    [Fact]
+    public void Request_operations_should_declare_self_service_policy_while_approval_history_remains_role_aware()
+    {
+        string[] selfServiceActions = ["Create", "GetMine", "GetById", "Update", "Submit", "Cancel"];
+        foreach (string action in selfServiceActions)
+        {
+            AuthorizeAttribute attribute = Assert.Single(typeof(CorporateRequestsController).GetMethod(action)!
+                .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>());
+            Assert.Equal("Requests.SelfService", attribute.Policy);
+        }
+
+        Assert.Empty(typeof(CorporateRequestsController).GetMethod("ApprovalHistory")!
+            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true));
+    }
+
+    [Fact]
     public async Task Swagger_should_publish_safe_request_routes_and_row_version_contract()
     {
         using HttpClient client = factory!.CreateClient();
@@ -206,6 +242,43 @@ public sealed class CorporateRequestsApiIntegrationTests(SqlServerDatabaseFixtur
         Assert.DoesNotContain("tokenHash", swagger, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Search_should_return_only_owned_title_or_description_matches_with_filtered_count_and_validation()
+    {
+        using HttpClient employee = await AuthenticatedClientAsync(DevelopmentSeedData.EmployeeEmail);
+        JsonElement titleMatch = await CreateAsync(employee, "Bilgisayar satın alma", "Donanım ihtiyacı", requestType: 3);
+        JsonElement descriptionMatch = await CreateAsync(employee, "Ergonomi ekipmanı", "Dizüstü bilgisayar için yükseltici", requestType: 1, amount: 750m);
+        await CreateAsync(employee, "Telefon talebi", "Mobil iletişim", requestType: 4);
+        using HttpClient manager = await AuthenticatedClientAsync(DevelopmentSeedData.ManagerEmail);
+        await CreateAsync(manager, "Bilgisayar yönetici kaydı", "Owner scope dışında", requestType: 3);
+
+        using HttpResponseMessage firstResponse = await employee.GetAsync("/api/requests?searchTerm=%20bilgisayar%20&pageNumber=1&pageSize=1&sortBy=createdDate&sortDirection=Ascending");
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        JsonElement first = await firstResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, first.GetProperty("totalCount").GetInt32()); Assert.Single(first.GetProperty("items").EnumerateArray());
+        using HttpResponseMessage secondResponse = await employee.GetAsync("/api/requests?searchTerm=bilgisayar&pageNumber=2&pageSize=1&sortBy=createdDate&sortDirection=Ascending");
+        JsonElement second = await secondResponse.Content.ReadFromJsonAsync<JsonElement>(); Assert.Equal(2, second.GetProperty("totalCount").GetInt32());
+        Guid[] ids = [first.GetProperty("items")[0].GetProperty("id").GetGuid(), second.GetProperty("items")[0].GetProperty("id").GetGuid()];
+        Assert.Contains(titleMatch.GetProperty("id").GetGuid(), ids); Assert.Contains(descriptionMatch.GetProperty("id").GetGuid(), ids);
+
+        using HttpResponseMessage filteredResponse = await employee.GetAsync("/api/requests?searchTerm=bilgisayar&requestType=Expense&status=Draft&pageNumber=1&pageSize=20");
+        JsonElement filtered = await filteredResponse.Content.ReadFromJsonAsync<JsonElement>(); Assert.Equal(1, filtered.GetProperty("totalCount").GetInt32()); Assert.Equal(descriptionMatch.GetProperty("id").GetGuid(), filtered.GetProperty("items")[0].GetProperty("id").GetGuid());
+        using HttpResponseMessage invalid = await employee.GetAsync("/api/requests?searchTerm=" + new string('a', 101));
+        await AssertProblemAsync(invalid, HttpStatusCode.BadRequest, "validation.failed");
+    }
+
+    [Fact]
+    public async Task Swagger_should_publish_optional_string_search_without_owner_input()
+    {
+        using HttpClient client = factory!.CreateClient();
+        JsonElement swagger = await client.GetFromJsonAsync<JsonElement>("/swagger/v1/swagger.json");
+        JsonElement parameters = swagger.GetProperty("paths").GetProperty("/api/requests").GetProperty("get").GetProperty("parameters");
+        JsonElement search = Assert.Single(parameters.EnumerateArray().Where(parameter => parameter.GetProperty("name").GetString() == "SearchTerm"));
+        Assert.Equal("query", search.GetProperty("in").GetString()); Assert.Equal("string", search.GetProperty("schema").GetProperty("type").GetString());
+        Assert.False(search.TryGetProperty("required", out JsonElement required) && required.GetBoolean());
+        Assert.DoesNotContain(parameters.EnumerateArray(), parameter => parameter.GetProperty("name").GetString()?.Contains("owner", StringComparison.OrdinalIgnoreCase) == true || parameter.GetProperty("name").GetString()?.Contains("createdBy", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
     private async Task<HttpClient> AuthenticatedClientAsync(string email)
     {
         HttpClient client = factory!.CreateClient();
@@ -214,9 +287,9 @@ public sealed class CorporateRequestsApiIntegrationTests(SqlServerDatabaseFixtur
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body.GetProperty("accessToken").GetString());
         return client;
     }
-    private static async Task<JsonElement> CreateAsync(HttpClient client, string title)
+    private static async Task<JsonElement> CreateAsync(HttpClient client, string title, string description = "Safe integration request", int requestType = 3, decimal? amount = null)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/requests", new { title, description = "Safe integration request", requestType = 3, amount = (decimal?)null });
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/requests", new { title, description, requestType, amount });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode); Assert.NotNull(response.Headers.Location);
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }

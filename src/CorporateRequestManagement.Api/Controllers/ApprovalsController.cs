@@ -14,7 +14,7 @@ public sealed class ApprovalsController(ISender sender) : ControllerBase
 {
     [HttpGet("manager"), Authorize(Policy = "Requests.ManagerApproval")]
     public Task<PagedResult<ApprovalQueueItemDto>> ManagerQueue([FromQuery] GetPendingApprovalsRequest request, CancellationToken ct) =>
-        sender.Send(new GetManagerApprovalQueueQuery(request.PageNumber, request.PageSize, request.RequestType, request.CreatedFrom, request.CreatedTo, request.SortBy, request.SortDirection), ct);
+        sender.Send(new GetManagerApprovalQueueQuery(request.PageNumber, request.PageSize, request.RequestType, request.CreatedFrom, request.CreatedTo, request.SearchTerm, request.SortBy, request.SortDirection), ct);
     [HttpGet("manager/{requestId:guid}"), Authorize(Policy = "Requests.ManagerApproval")]
     public Task<ApprovalRequestDetailDto> ManagerDetail(Guid requestId, CancellationToken ct) => sender.Send(new GetManagerApprovalDetailQuery(requestId), ct);
     [HttpPost("manager/{requestId:guid}/approve"), Authorize(Policy = "Requests.ManagerApproval")]
@@ -24,7 +24,7 @@ public sealed class ApprovalsController(ISender sender) : ControllerBase
 
     [HttpGet("admin"), Authorize(Policy = "Requests.AdminApproval")]
     public Task<PagedResult<ApprovalQueueItemDto>> AdminQueue([FromQuery] GetPendingApprovalsRequest request, CancellationToken ct) =>
-        sender.Send(new GetAdminApprovalQueueQuery(request.PageNumber, request.PageSize, request.DepartmentId, request.RequestType, request.CreatedFrom, request.CreatedTo, request.SortBy, request.SortDirection), ct);
+        sender.Send(new GetAdminApprovalQueueQuery(request.PageNumber, request.PageSize, request.DepartmentId, request.RequestType, request.CreatedFrom, request.CreatedTo, request.SearchTerm, request.SortBy, request.SortDirection), ct);
     [HttpGet("admin/{requestId:guid}"), Authorize(Policy = "Requests.AdminApproval")]
     public Task<ApprovalRequestDetailDto> AdminDetail(Guid requestId, CancellationToken ct) => sender.Send(new GetAdminApprovalDetailQuery(requestId), ct);
     [HttpPost("admin/{requestId:guid}/approve"), Authorize(Policy = "Requests.AdminApproval")]

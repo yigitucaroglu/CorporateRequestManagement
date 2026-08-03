@@ -10,5 +10,5 @@ public sealed record UpdateDraftCorporateRequestRequest(string Title, string Des
 public sealed record CorporateRequestMutationRequest(string RowVersion);
 public sealed record GetMyCorporateRequestsRequest(int PageNumber = PageRequest.DefaultPage, int PageSize = PageRequest.DefaultPageSize,
     RequestStatus? Status = null, RequestType? RequestType = null, DateTimeOffset? CreatedFrom = null,
-    DateTimeOffset? CreatedTo = null, string SortBy = CorporateRequestSortFields.CreatedDate,
+    DateTimeOffset? CreatedTo = null, string? SearchTerm = null, string SortBy = CorporateRequestSortFields.CreatedDate,
     SortDirection SortDirection = SortDirection.Descending);

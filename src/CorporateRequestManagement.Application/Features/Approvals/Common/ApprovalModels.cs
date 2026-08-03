@@ -16,7 +16,14 @@ public sealed record ApprovalRequestDetailDto(Guid RequestId, string Title, stri
     DateTimeOffset? CompletedDate, string RowVersion, IReadOnlyList<ApprovalHistoryItemDto> ApprovalHistory);
 
 public sealed record ApprovalQueueCriteria(int PageNumber, int PageSize, RequestType? RequestType,
-    Guid? DepartmentId, DateTimeOffset? CreatedFrom, DateTimeOffset? CreatedTo, string SortBy, SortDirection SortDirection);
+    Guid? DepartmentId, DateTimeOffset? CreatedFrom, DateTimeOffset? CreatedTo, string? SearchTerm,
+    string SortBy, SortDirection SortDirection);
+
+public static class ApprovalSearch
+{
+    public const int MaxLength = 100;
+    public static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
 
 public static class ApprovalSortFields
 {

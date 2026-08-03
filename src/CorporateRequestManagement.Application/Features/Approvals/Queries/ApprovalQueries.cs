@@ -13,10 +13,10 @@ using MediatR;
 namespace CorporateRequestManagement.Application.Features.Approvals.Queries;
 
 public sealed record GetManagerApprovalQueueQuery(int PageNumber = 1, int PageSize = 20, RequestType? RequestType = null,
-    DateTimeOffset? CreatedFrom = null, DateTimeOffset? CreatedTo = null, string SortBy = ApprovalSortFields.SubmittedDate,
+    DateTimeOffset? CreatedFrom = null, DateTimeOffset? CreatedTo = null, string? SearchTerm = null, string SortBy = ApprovalSortFields.SubmittedDate,
     SortDirection SortDirection = SortDirection.Ascending) : IRequest<PagedResult<ApprovalQueueItemDto>>;
 public sealed record GetAdminApprovalQueueQuery(int PageNumber = 1, int PageSize = 20, Guid? DepartmentId = null, RequestType? RequestType = null,
-    DateTimeOffset? CreatedFrom = null, DateTimeOffset? CreatedTo = null, string SortBy = ApprovalSortFields.SubmittedDate,
+    DateTimeOffset? CreatedFrom = null, DateTimeOffset? CreatedTo = null, string? SearchTerm = null, string SortBy = ApprovalSortFields.SubmittedDate,
     SortDirection SortDirection = SortDirection.Ascending) : IRequest<PagedResult<ApprovalQueueItemDto>>;
 public sealed record GetManagerApprovalDetailQuery(Guid RequestId) : IRequest<ApprovalRequestDetailDto>;
 public sealed record GetAdminApprovalDetailQuery(Guid RequestId) : IRequest<ApprovalRequestDetailDto>;
@@ -30,6 +30,7 @@ internal sealed class GetManagerApprovalQueueQueryValidator : AbstractValidator<
         RuleFor(x => x.SortBy).Must(ApprovalSortFields.All.Contains); RuleFor(x => x.SortDirection).IsInEnum();
         RuleFor(x => x.RequestType).Must(x => !x.HasValue || Enum.IsDefined(x.Value));
         RuleFor(x => x.CreatedTo).GreaterThanOrEqualTo(x => x.CreatedFrom).When(x => x.CreatedFrom.HasValue && x.CreatedTo.HasValue);
+        RuleFor(x => x.SearchTerm).Must(x => ApprovalSearch.Normalize(x) is not { } value || value.Length <= ApprovalSearch.MaxLength);
     }
 }
 internal sealed class GetAdminApprovalQueueQueryValidator : AbstractValidator<GetAdminApprovalQueueQuery>
@@ -41,6 +42,7 @@ internal sealed class GetAdminApprovalQueueQueryValidator : AbstractValidator<Ge
         RuleFor(x => x.RequestType).Must(x => !x.HasValue || Enum.IsDefined(x.Value));
         RuleFor(x => x.CreatedTo).GreaterThanOrEqualTo(x => x.CreatedFrom).When(x => x.CreatedFrom.HasValue && x.CreatedTo.HasValue);
         RuleFor(x => x.DepartmentId).NotEqual(Guid.Empty).When(x => x.DepartmentId.HasValue);
+        RuleFor(x => x.SearchTerm).Must(x => ApprovalSearch.Normalize(x) is not { } value || value.Length <= ApprovalSearch.MaxLength);
     }
 }
 internal sealed class GetManagerApprovalDetailQueryValidator : AbstractValidator<GetManagerApprovalDetailQuery>
@@ -54,13 +56,13 @@ internal sealed class GetManagerApprovalQueueQueryHandler(ICurrentUserContext cu
     : IRequestHandler<GetManagerApprovalQueueQuery, PagedResult<ApprovalQueueItemDto>>
 {
     public async Task<PagedResult<ApprovalQueueItemDto>> Handle(GetManagerApprovalQueueQuery q, CancellationToken ct)
-    { Guid actor = await ApprovalDecisionGuard.RequireActorAsync(current, users, UserRole.Manager, ct); return await reads.GetManagerQueueAsync(actor, new(q.PageNumber, q.PageSize, q.RequestType, null, q.CreatedFrom, q.CreatedTo, q.SortBy, q.SortDirection), ct); }
+    { Guid actor = await ApprovalDecisionGuard.RequireActorAsync(current, users, UserRole.Manager, ct); return await reads.GetManagerQueueAsync(actor, new(q.PageNumber, q.PageSize, q.RequestType, null, q.CreatedFrom, q.CreatedTo, ApprovalSearch.Normalize(q.SearchTerm), q.SortBy, q.SortDirection), ct); }
 }
 internal sealed class GetAdminApprovalQueueQueryHandler(ICurrentUserContext current, IUserRepository users, IApprovalReadRepository reads)
     : IRequestHandler<GetAdminApprovalQueueQuery, PagedResult<ApprovalQueueItemDto>>
 {
     public async Task<PagedResult<ApprovalQueueItemDto>> Handle(GetAdminApprovalQueueQuery q, CancellationToken ct)
-    { Guid actor = await ApprovalDecisionGuard.RequireActorAsync(current, users, UserRole.Admin, ct); return await reads.GetAdminQueueAsync(actor, new(q.PageNumber, q.PageSize, q.RequestType, q.DepartmentId, q.CreatedFrom, q.CreatedTo, q.SortBy, q.SortDirection), ct); }
+    { Guid actor = await ApprovalDecisionGuard.RequireActorAsync(current, users, UserRole.Admin, ct); return await reads.GetAdminQueueAsync(actor, new(q.PageNumber, q.PageSize, q.RequestType, q.DepartmentId, q.CreatedFrom, q.CreatedTo, ApprovalSearch.Normalize(q.SearchTerm), q.SortBy, q.SortDirection), ct); }
 }
 internal sealed class GetManagerApprovalDetailQueryHandler(ICurrentUserContext current, IUserRepository users, IApprovalReadRepository reads)
     : IRequestHandler<GetManagerApprovalDetailQuery, ApprovalRequestDetailDto>
