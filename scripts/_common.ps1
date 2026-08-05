@@ -30,9 +30,22 @@ function Get-ProjectUserSecretsId([string]$ProjectPath) {
     if ([string]::IsNullOrWhiteSpace([string]$id)) { throw "UserSecretsId bulunamadı: $ProjectPath" }
     return [string]$id
 }
+function Get-NormalizedPath([string]$Path) {
+    return [IO.Path]::GetFullPath($Path).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+}
+function Get-VerifiedApplicationDataPath {
+    $resolved = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
+    if ($env:OS -eq 'Windows_NT' -and
+        -not [string]::IsNullOrWhiteSpace($env:APPDATA) -and
+        -not [string]::IsNullOrWhiteSpace($resolved) -and
+        -not [string]::Equals((Get-NormalizedPath $env:APPDATA), (Get-NormalizedPath $resolved), [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'APPDATA ile Windows kullanıcı profili yolu farklı görünüyor. User Secrets güvenli biçimde çözülemediği için kurulum durduruldu.'
+    }
+    return $resolved
+}
 function Get-UserSecretsPath([string]$UserSecretsId) {
     if ($env:OS -eq 'Windows_NT') {
-        $base = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
+        $base = Get-VerifiedApplicationDataPath
         return Join-Path $base "Microsoft\UserSecrets\$UserSecretsId\secrets.json"
     }
     return Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ".microsoft/usersecrets/$UserSecretsId/secrets.json"
@@ -51,6 +64,44 @@ function Write-SecretMap([string]$Path, [hashtable]$Values) {
     if (-not (Test-Path -LiteralPath $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
     $json = $Values | ConvertTo-Json -Depth 10
     [IO.File]::WriteAllText($Path, $json, (New-Object Text.UTF8Encoding($false)))
+}
+function Confirm-DevelopmentSecretMap([string]$Path, [string]$ExpectedConnectionString, [string]$ExpectedDatabase, [string]$RepositoryRoot) {
+    $secretPath = Get-NormalizedPath $Path
+    $repositoryPath = (Get-NormalizedPath $RepositoryRoot) + [IO.Path]::DirectorySeparatorChar
+    if (($secretPath + [IO.Path]::DirectorySeparatorChar).StartsWith($repositoryPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'User Secrets dosyası repository dışında olmalıdır.'
+    }
+    $map = Read-SecretMap $Path
+    if (-not $map.ContainsKey('ConnectionStrings:DefaultConnection') -or
+        [string]::IsNullOrWhiteSpace([string]$map['ConnectionStrings:DefaultConnection'])) {
+        throw 'User Secrets connection read-back doğrulaması başarısız.'
+    }
+    if (-not $map.ContainsKey('Jwt:SigningKey') -or [string]::IsNullOrWhiteSpace([string]$map['Jwt:SigningKey'])) {
+        throw 'User Secrets JWT read-back doğrulaması başarısız.'
+    }
+    try {
+        $actual = New-Object System.Data.SqlClient.SqlConnectionStringBuilder -ArgumentList ([string]$map['ConnectionStrings:DefaultConnection'])
+        $expected = New-Object System.Data.SqlClient.SqlConnectionStringBuilder -ArgumentList $ExpectedConnectionString
+    } catch {
+        throw 'User Secrets connection read-back parse doğrulaması başarısız.'
+    }
+    if (-not [string]::Equals([string]$actual['Initial Catalog'], $ExpectedDatabase, [StringComparison]::Ordinal) -or
+        -not [string]::Equals([string]$actual['Data Source'], [string]$expected['Data Source'], [StringComparison]::OrdinalIgnoreCase) -or
+        [bool]$actual['Integrated Security'] -ne [bool]$expected['Integrated Security'] -or
+        -not [string]::Equals([string]$actual['User ID'], [string]$expected['User ID'], [StringComparison]::Ordinal)) {
+        throw 'User Secrets connection read-back hedef metadata doğrulaması başarısız.'
+    }
+    return $map
+}
+function Invoke-WithProcessEnvironment([hashtable]$Values, [scriptblock]$Action) {
+    $previous = @{}
+    foreach ($name in $Values.Keys) { $previous[$name] = [Environment]::GetEnvironmentVariable([string]$name, 'Process') }
+    try {
+        foreach ($name in $Values.Keys) { [Environment]::SetEnvironmentVariable([string]$name, [string]$Values[$name], 'Process') }
+        & $Action
+    } finally {
+        foreach ($name in $Values.Keys) { [Environment]::SetEnvironmentVariable([string]$name, $previous[$name], 'Process') }
+    }
 }
 function Get-PortNumber([string]$Url) { return ([Uri]$Url).Port }
 function Get-PortOwner([int]$Port) {

@@ -25,6 +25,12 @@ HTTP fallback kullanmayın; canonical adresler API için 7001, Web için 7002 HT
 
 `ASPNETCORE_ENVIRONMENT=Development` olduğundan, doğru Development database'e bağlandığınızdan ve initializer'ın tamamlandığından emin olun. Setup script'ini yeniden çalıştırmak migration ve seed açısından idempotent'tir. Hesaplar `admin@company.com`, `manager@company.com`, `employee@company.com`; Development-only parola README tablosundadır.
 
+## Clean-clone veya setup sonrası yanlış veritabanına bağlanma
+
+Setup için canonical hedef `-Database` parametresidir. Script, User Secrets dosyasını yazdıktan sonra connection metadata'sını güvenli biçimde yeniden okur ve initializer child process'ine yalnız process scope'unda doğrulanmış hedef connection'ı aktarır. `APPDATA` ile Windows kullanıcı profili yolu farklıysa herhangi bir secret veya database değişikliği yapmadan durur.
+
+Doğru database seçimiyle setup script'ini yeniden çalıştırın; connection string, parola veya JWT değerini terminale yazdırmayın. Kaynağı ve sahipliği kesin olarak doğrulanmamış bir database'i otomatik olarak silmeyin.
+
 ## SQL bağlantı veya yetki problemi
 
 Server/named-instance, Windows veya SQL Authentication modu ve login durumunu doğrulayın. Setup ve integration testleri master bağlantısı ile minimum `CREATE ANY DATABASE` yetkisi ister; sysadmin gerekmez. SQL parolasını command line'a veya repository dosyasına yazmayın.

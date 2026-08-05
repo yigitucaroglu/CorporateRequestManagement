@@ -115,6 +115,7 @@ try {
         try { $rng.GetBytes($bytes); $secrets['Jwt:SigningKey'] = [Convert]::ToBase64String($bytes) } finally { $rng.Dispose(); [Array]::Clear($bytes, 0, $bytes.Length) }
     }
     Write-SecretMap $secretPath $secrets
+    $verifiedSecrets = Confirm-DevelopmentSecretMap $secretPath $developmentConnectionString $Database $root
     Write-Success 'Connection ve JWT ayarları Git dışındaki API User Secrets alanına kaydedildi.'
 
     if (-not $SkipHttpsTrust) {
@@ -131,18 +132,28 @@ try {
     }
     if (-not $SkipDatabaseInitialization) {
         Write-Step 'Migration ve idempotent Development seed çalıştırılıyor.'
-        $previous = [Environment]::GetEnvironmentVariable('ASPNETCORE_ENVIRONMENT','Process')
-        try {
-            [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT','Development','Process')
+        $initializerEnvironment = @{
+            'ASPNETCORE_ENVIRONMENT' = 'Development'
+            'ConnectionStrings__DefaultConnection' = $developmentConnectionString
+            'Jwt__SigningKey' = [string]$verifiedSecrets['Jwt:SigningKey']
+        }
+        Invoke-WithProcessEnvironment $initializerEnvironment {
             $arguments = @('run','--project','src\CorporateRequestManagement.Api','--configuration','Release','--no-build','--no-launch-profile','--','--initialize-database')
             Invoke-DotNet $arguments
-        } finally { [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT',$previous,'Process') }
+        }
         $verify = [System.Data.SqlClient.SqlConnection]::new($developmentConnectionString)
         try {
             $verify.Open()
             $command = $verify.CreateCommand()
-            $command.CommandText = "SELECT (SELECT COUNT(*) FROM Users WHERE Email IN ('admin@company.com','manager@company.com','employee@company.com') AND IsDeleted=0) + (SELECT COUNT(*) FROM Departments WHERE Id IN ('10000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002') AND IsDeleted=0)"
-            if ([int]$command.ExecuteScalar() -ne 5) { throw 'Development seed doğrulaması başarısız.' }
+            $command.CommandText = "SELECT DB_NAME(), (SELECT COUNT(*) FROM Users WHERE Email IN ('admin@company.com','manager@company.com','employee@company.com') AND IsDeleted=0), (SELECT COUNT(*) FROM Departments WHERE Id IN ('10000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002') AND IsDeleted=0)"
+            $reader = $command.ExecuteReader()
+            try {
+                if (-not $reader.Read() -or
+                    -not [string]::Equals([string]$reader.GetString(0), $Database, [StringComparison]::Ordinal) -or
+                    $reader.GetInt32(1) -ne 3 -or $reader.GetInt32(2) -ne 2) {
+                    throw 'Development target database veya seed metadata doğrulaması başarısız.'
+                }
+            } finally { $reader.Dispose() }
         } finally { $verify.Dispose() }
         Write-Success 'Migration ve Development seed doğrulandı.'
     }
