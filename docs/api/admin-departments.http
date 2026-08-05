@@ -1,0 +1,48 @@
+@api = https://localhost:7001
+@token = <admin-access-token>
+@departmentId = <department-guid>
+@managerId = <eligible-manager-guid>
+
+### List
+GET {{api}}/api/admin/departments?pageNumber=1&pageSize=20&searchTerm=Yazılım&hasManager=true&sortBy=createdDate&sortDirection=Descending
+Authorization: Bearer {{token}}
+
+### Detail
+GET {{api}}/api/admin/departments/{{departmentId}}
+Authorization: Bearer {{token}}
+
+### Create
+POST {{api}}/api/admin/departments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name":"Yeni Departman"}
+
+### Update
+PUT {{api}}/api/admin/departments/{{departmentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name":"Güncel Departman"}
+
+### Eligible manager lookup
+GET {{api}}/api/admin/departments/{{departmentId}}/eligible-managers
+Authorization: Bearer {{token}}
+
+### Assign existing manager — null managerId atamayı kaldırır
+PUT {{api}}/api/admin/departments/{{departmentId}}/manager
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"managerId":"{{managerId}}"}
+
+### Atomik manager oluşturma ve route'taki departmana atama
+POST {{api}}/api/admin/departments/{{departmentId}}/manager/create-and-assign
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"firstName":"Yeni","lastName":"Yönetici","email":"new.manager@company.com","initialPassword":"<development-password>","confirmPassword":"<development-password>","isActive":true}
+
+### Soft-delete
+DELETE {{api}}/api/admin/departments/{{departmentId}}
+Authorization: Bearer {{token}}

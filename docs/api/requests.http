@@ -1,54 +1,68 @@
-@api = https://localhost:7100
-@accessToken = PASTE_DEVELOPMENT_ACCESS_TOKEN_HERE
-@requestId = PASTE_REQUEST_ID_HERE
-@rowVersion = PASTE_BASE64_ROWVERSION_FROM_PREVIOUS_RESPONSE_HERE
+@api = https://localhost:7001
+@accessToken = <employee-access-token>
+@adminAccessToken = <admin-access-token>
+@requestId = <request-guid>
+@rowVersion = <latest-base64-rowversion>
 
-### Development login (yalnız yerel demo ortamı)
+### Development-only Employee login — parola için README seed tablosunu kullanın
 POST {{api}}/api/auth/login
 Content-Type: application/json
 
-{ "email": "employee@crm.local", "password": "CrmDemo!2026" }
+{"email":"employee@company.com","password":"<development-demo-password>"}
 
-### Create draft
+### Create Equipment draft — enum numeric 2, amount zorunlu
 POST {{api}}/api/requests
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
-{ "title": "Yeni ekipman talebi", "description": "Geliştirme ortamı örnek talebi", "requestType": 2, "amount": 1250.00 }
+{"title":"Yeni ekipman talebi","description":"Geliştirme ortamı örnek talebi","requestType":2,"amount":1250.00}
+
+### Create Other draft — enum numeric 4, amount nullable
+POST {{api}}/api/requests
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{"title":"Diğer talep","description":"Tutar gerektirmeyen örnek talep","requestType":4,"amount":null}
+
+### Create Expense draft — enum numeric 1, amount zorunlu
+POST {{api}}/api/requests
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{"title":"Masraf talebi","description":"Geliştirme masraf örneği","requestType":1,"amount":450.00}
 
 ### My requests
-GET {{api}}/api/requests?pageNumber=1&pageSize=20&sortBy=createdDate&sortDirection=Descending
-Authorization: Bearer {{accessToken}}
-
-### Filtered requests
-GET {{api}}/api/requests?status=Draft&requestType=Equipment&createdFrom=2026-01-01T00:00:00Z&createdTo=2026-12-31T23:59:59Z
-Authorization: Bearer {{accessToken}}
-
-### Search title or description (combined with filters and server-side paging)
-GET {{api}}/api/requests?searchTerm=bilgisayar&status=Draft&pageNumber=1&pageSize=20
+GET {{api}}/api/requests?pageNumber=1&pageSize=20&searchTerm=ekipman&status=Draft&requestType=Equipment&sortBy=createdDate&sortDirection=Descending
 Authorization: Bearer {{accessToken}}
 
 ### Detail
 GET {{api}}/api/requests/{{requestId}}
 Authorization: Bearer {{accessToken}}
 
-### Update draft — rowVersion değerini son response içinden kopyalayın
+### Update draft
 PUT {{api}}/api/requests/{{requestId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
-{ "title": "Güncellenmiş talep", "description": "Güncel açıklama", "requestType": 2, "amount": 1300.00, "rowVersion": "{{rowVersion}}" }
+{"title":"Güncellenmiş talep","description":"Güncel açıklama","requestType":2,"amount":1300.00,"rowVersion":"{{rowVersion}}"}
 
-### Submit — update response içindeki yeni rowVersion kullanılmalıdır
+### Submit
 POST {{api}}/api/requests/{{requestId}}/submit
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
-{ "rowVersion": "{{rowVersion}}" }
+{"rowVersion":"{{rowVersion}}"}
 
-### Cancel — her mutation sonrasında dönen en yeni rowVersion kullanılmalıdır
+### Cancel
 POST {{api}}/api/requests/{{requestId}}/cancel
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
-{ "rowVersion": "{{rowVersion}}" }
+{"rowVersion":"{{rowVersion}}"}
+
+### Soft-delete — Admin endpoint; admin token kullanın
+DELETE {{api}}/api/admin/requests/{{requestId}}
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{"rowVersion":"{{rowVersion}}"}

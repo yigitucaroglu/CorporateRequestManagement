@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using CorporateRequestManagement.Web.Api;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace CorporateRequestManagement.Web.Models;
 
@@ -112,6 +114,20 @@ public sealed record PaginationViewModel(
             yield return page;
             previous = page;
         }
+    }
+}
+
+public static class PaginationUrl
+{
+    public static string Build(PathString pathBase, PathString path, IReadOnlyDictionary<string, string?> queryParameters, int pageNumber, int pageSize)
+    {
+        string currentPath = pathBase.Add(path).Value ?? "/";
+        var query = new Dictionary<string, string?>(queryParameters, StringComparer.OrdinalIgnoreCase)
+        {
+            ["PageNumber"] = pageNumber.ToString(CultureInfo.InvariantCulture),
+            ["PageSize"] = pageSize.ToString(CultureInfo.InvariantCulture)
+        };
+        return QueryHelpers.AddQueryString(currentPath, query);
     }
 }
 

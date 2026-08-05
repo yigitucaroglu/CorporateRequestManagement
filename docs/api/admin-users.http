@@ -1,0 +1,37 @@
+@api = https://localhost:7001
+@token = <admin-access-token>
+@userId = <user-guid>
+@departmentId = <department-guid>
+
+### List
+GET {{api}}/api/admin/users?pageNumber=1&pageSize=20&searchTerm=demo&role=Employee&departmentId={{departmentId}}&isActive=true&sortBy=createdDate&sortDirection=Descending
+Authorization: Bearer {{token}}
+
+### Detail
+GET {{api}}/api/admin/users/{{userId}}
+Authorization: Bearer {{token}}
+
+### Create — Development-only parola placeholder'ı
+POST {{api}}/api/admin/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"firstName":"Demo","lastName":"User","email":"demo.user@company.com","initialPassword":"<development-password>","confirmInitialPassword":"<development-password>","role":1,"departmentId":"{{departmentId}}","isActive":true}
+
+### Update
+PUT {{api}}/api/admin/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"firstName":"Demo","lastName":"Updated","email":"demo.updated@company.com","role":1,"departmentId":"{{departmentId}}","isActive":true}
+
+### Reset password
+POST {{api}}/api/admin/users/{{userId}}/reset-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"newPassword":"<new-development-password>","confirmPassword":"<new-development-password>"}
+
+### Soft-delete
+DELETE {{api}}/api/admin/users/{{userId}}
+Authorization: Bearer {{token}}

@@ -53,4 +53,12 @@ public sealed class AccountController(IAuthenticationApiClient api, IUserTokenSt
     }
 
     [HttpGet("access-denied"), AllowAnonymous] public IActionResult AccessDenied() => View();
+
+    [HttpGet("error"), AllowAnonymous, ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult Error()
+    {
+        Response.StatusCode = StatusCodes.Status500InternalServerError;
+        ViewData["SafeErrorMessage"] = "Beklenmeyen bir sorun oluştu. Lütfen yeniden deneyin.";
+        return View("~/Views/Shared/Error.cshtml");
+    }
 }

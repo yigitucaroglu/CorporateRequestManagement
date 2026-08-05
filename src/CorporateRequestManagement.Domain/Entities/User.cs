@@ -91,6 +91,26 @@ public sealed class User : SoftDeletableEntity
         return new User(id, firstName, lastName, email, passwordHash, role, departmentId, createdDate);
     }
 
+    public void UpdateProfile(string firstName, string lastName, string email, UserRole role, Guid? departmentId, bool isActive)
+    {
+        string normalizedEmail = RequiredText(email, EmailMaxLength, "user.email_required", "user.email_too_long").ToLowerInvariant();
+        if (!IsValidEmail(normalizedEmail)) throw new DomainRuleException("user.email_invalid", "E-posta biçimi geçersiz.");
+        if (!Enum.IsDefined(role)) throw new DomainRuleException("user.role_invalid", "Kullanıcı rolü geçersiz.");
+        if (departmentId == Guid.Empty || (role is UserRole.Employee or UserRole.Manager && departmentId is null))
+            throw new DomainRuleException("user.department_required", "Çalışan ve yönetici için departman zorunludur.");
+        FirstName = RequiredText(firstName, NameMaxLength, "user.first_name_required", "user.first_name_too_long");
+        LastName = RequiredText(lastName, NameMaxLength, "user.last_name_required", "user.last_name_too_long");
+        Email = normalizedEmail;
+        Role = role;
+        DepartmentId = departmentId;
+        IsActive = isActive;
+    }
+
+    public void ChangePasswordHash(string passwordHash)
+    {
+        PasswordHash = RequiredText(passwordHash, PasswordHashMaxLength, "user.password_hash_required", "user.password_hash_too_long");
+    }
+
     public void SoftDelete(DateTimeOffset deletedDate, Guid deletedByUserId)
     {
         if (deletedDate < CreatedDate)

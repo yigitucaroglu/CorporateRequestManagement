@@ -18,6 +18,11 @@ internal sealed class DepartmentRepository(ApplicationDbContext context) : IDepa
             cancellationToken);
     }
 
+    public Task<bool> IsActiveDepartmentManagerAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.Departments.AnyAsync(department => department.ManagerId == userId, cancellationToken);
+    }
+
     public async Task AddAsync(Department department, CancellationToken cancellationToken = default)
     {
         await context.Departments.AddAsync(department, cancellationToken);

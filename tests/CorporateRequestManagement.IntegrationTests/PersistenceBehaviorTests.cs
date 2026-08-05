@@ -50,7 +50,8 @@ public sealed class PersistenceBehaviorTests(SqlServerDatabaseFixture fixture)
         var principals = await SqlServerDatabaseFixture.AddPrincipalsAsync(context, Guid.NewGuid().ToString("N"));
         context.Users.Add(User.Create(Guid.NewGuid(), "Duplicate", "User", principals.Employee.Email, "hash", UserRole.Employee, principals.Department.Id, Now));
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        var exception = await Assert.ThrowsAsync<CorporateRequestManagement.Application.Common.Exceptions.ConflictException>(() => context.SaveChangesAsync());
+        Assert.Equal("user.email_exists", exception.Code);
     }
 
     [Fact]

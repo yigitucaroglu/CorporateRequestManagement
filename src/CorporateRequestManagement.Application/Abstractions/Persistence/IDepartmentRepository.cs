@@ -13,6 +13,10 @@ public interface IDepartmentRepository
         Guid? excludingDepartmentId = null,
         CancellationToken cancellationToken = default);
 
+    Task<bool> IsActiveDepartmentManagerAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         Department department,
         CancellationToken cancellationToken = default);

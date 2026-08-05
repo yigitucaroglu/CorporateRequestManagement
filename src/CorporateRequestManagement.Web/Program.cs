@@ -26,7 +26,11 @@ builder.Services.AddAuthentication(WebAuthenticationDefaults.Scheme).AddCookie(W
     options.LoginPath = "/account/login"; options.AccessDeniedPath = "/account/access-denied"; options.SlidingExpiration = false;
 });
 builder.Services.AddAuthorization(options =>
-    options.AddPolicy("Requests.SelfService", policy => policy.RequireAuthenticatedUser().RequireRole("Employee", "Manager")));
+{
+    options.AddPolicy("Requests.SelfService", policy => policy.RequireAuthenticatedUser().RequireRole("Employee", "Manager"));
+    options.AddPolicy("Admin.Exact", policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+    options.AddPolicy("Manager.Exact", policy => policy.RequireAuthenticatedUser().RequireRole("Manager"));
+});
 builder.Services.AddOptions<BackendApiOptions>().Bind(builder.Configuration.GetSection(BackendApiOptions.SectionName))
     .Validate(options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps), "BackendApi BaseUrl geçersiz.")
     .Validate(options => options.RequestTimeoutSeconds is >= 1 and <= 120, "BackendApi timeout geçersiz.").ValidateOnStart();
@@ -51,9 +55,16 @@ builder.Services.AddHttpClient<IBackendApiGateway, BackendApiGateway>((provider,
 builder.Services.AddScoped<IRequestsApiClient, RequestsApiClient>();
 builder.Services.AddScoped<IApprovalsApiClient, ApprovalsApiClient>();
 builder.Services.AddScoped<IDashboardApiClient, DashboardApiClient>();
+builder.Services.AddScoped<IAdminUsersApiClient, AdminUsersApiClient>();
+builder.Services.AddScoped<IAdminDepartmentsApiClient, AdminDepartmentsApiClient>();
+builder.Services.AddScoped<IAdminRequestsApiClient, AdminRequestsApiClient>();
+builder.Services.AddScoped<IManagerRequestsApiClient, ManagerRequestsApiClient>();
+builder.Services.AddScoped<IAuditLogsApiClient, AuditLogsApiClient>();
+builder.Services.AddScoped<IProfileApiClient, ProfileApiClient>();
+builder.Services.AddScoped<IWebApiErrorMapper, WebApiErrorMapper>();
 
 var app = builder.Build();
-if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/account/access-denied");
+if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/account/error");
 app.UseStaticFiles(); app.UseRouting(); app.UseSession(); app.UseAuthentication(); app.UseAuthorization();
 app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
 app.Run();

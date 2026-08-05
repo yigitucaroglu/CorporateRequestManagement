@@ -54,6 +54,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("Requests.SelfService", policy => policy.RequireAuthenticatedUser().RequireRole("Employee", "Manager"));
     options.AddPolicy("Requests.ManagerApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Manager"));
     options.AddPolicy("Requests.AdminApproval", policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+    options.AddPolicy("Admin.Exact", policy => policy.RequireAuthenticatedUser().RequireRole("Admin"));
+    options.AddPolicy("Manager.Exact", policy => policy.RequireAuthenticatedUser().RequireRole("Manager"));
 });
 int authLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 5);
 int generalLimit = builder.Configuration.GetValue("RateLimiting:GeneralPermitLimit", 100);

@@ -1,0 +1,16 @@
+@api = https://localhost:7001
+### Development-only: parola için README Development seed tablosunu kullanın.
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"employee@company.com","password":"<development-demo-password>"}
+###
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"manager@company.com","password":"<development-demo-password>"}
+###
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"admin@company.com","password":"<development-demo-password>"}

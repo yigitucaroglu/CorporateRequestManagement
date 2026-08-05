@@ -32,7 +32,14 @@ internal static class ApprovalControllerFlow
     {
         if (!approve && string.IsNullOrWhiteSpace(model.Reason)) { controller.TempData["Error"] = "Ret gerekçesi zorunludur."; return controller.RedirectToAction("Details", new { id }); }
         WebApiResult<ApprovalDetailContract> r = await api.DecideAsync(admin, id, approve, model.RowVersion, model.Reason, ct);
-        controller.TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? (approve ? "Talep onaylandı." : "Talep reddedildi.") : Safe(r);
+        if (r.IsSuccess)
+        {
+            controller.TempData["Success"] = !admin && approve && r.Value!.RequestStatus == RequestStatusContract.PendingAdminApproval
+                ? "Talep yönetici tarafından onaylandı ve yönetim onayına gönderildi."
+                : approve ? "Talep onaylandı." : "Talep reddedildi.";
+            return controller.RedirectToAction("Index");
+        }
+        controller.TempData["Error"] = Safe(r);
         return controller.RedirectToAction("Details", new { id });
     }
     private static IActionResult Failure(Controller c, HttpStatusCode status) => status switch { HttpStatusCode.Forbidden => c.RedirectToAction("AccessDenied", "Account"), HttpStatusCode.NotFound => c.View("NotFound"), HttpStatusCode.Unauthorized => c.RedirectToAction("Login", "Account"), _ => c.View("Error") };

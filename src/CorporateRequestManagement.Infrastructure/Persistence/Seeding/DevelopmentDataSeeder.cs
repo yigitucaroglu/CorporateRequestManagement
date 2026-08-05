@@ -21,7 +21,8 @@ public sealed class DevelopmentDataSeeder(
 
     private async Task ReconcileAsync(CancellationToken cancellationToken)
     {
-        Department? department = await FindDepartmentAsync(cancellationToken);
+        Department? department = await FindDepartmentAsync(DevelopmentSeedData.DepartmentId, DevelopmentSeedData.DepartmentName, DevelopmentSeedData.ManagerUserId, cancellationToken);
+        Department? finance = await FindDepartmentAsync(DevelopmentSeedData.FinanceDepartmentId, DevelopmentSeedData.FinanceDepartmentName, null, cancellationToken);
         User? admin = await FindUserAsync(
             DevelopmentSeedData.AdminUserId,
             DevelopmentSeedData.AdminEmail,
@@ -37,6 +38,13 @@ public sealed class DevelopmentDataSeeder(
                 null,
                 CreatedAt);
             context.Departments.Add(department);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        if (finance is null)
+        {
+            finance = Department.Create(DevelopmentSeedData.FinanceDepartmentId, DevelopmentSeedData.FinanceDepartmentName, null, CreatedAt);
+            context.Departments.Add(finance);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
@@ -88,16 +96,16 @@ public sealed class DevelopmentDataSeeder(
         }
     }
 
-    private async Task<Department?> FindDepartmentAsync(CancellationToken cancellationToken)
+    private async Task<Department?> FindDepartmentAsync(Guid expectedId, string expectedName, Guid? expectedManagerId, CancellationToken cancellationToken)
     {
         Department? byId = await context.Departments.IgnoreQueryFilters().SingleOrDefaultAsync(
-            item => item.Id == DevelopmentSeedData.DepartmentId,
+            item => item.Id == expectedId,
             cancellationToken);
         Department? byName = await context.Departments.IgnoreQueryFilters().SingleOrDefaultAsync(
-            item => item.Name == DevelopmentSeedData.DepartmentName,
+            item => item.Name == expectedName,
             cancellationToken);
 
-        if (byName is not null && byName.Id != DevelopmentSeedData.DepartmentId)
+        if (byName is not null && byName.Id != expectedId)
         {
             throw SeedConflict("Development department name belongs to an unexpected record.");
         }
@@ -107,12 +115,12 @@ public sealed class DevelopmentDataSeeder(
             return null;
         }
 
-        if (byId.Name != DevelopmentSeedData.DepartmentName || byId.IsDeleted)
+        if (byId.Name != expectedName || byId.IsDeleted)
         {
             throw SeedConflict("Development department record is inconsistent.");
         }
 
-        if (byId.ManagerId is not null && byId.ManagerId != DevelopmentSeedData.ManagerUserId)
+        if (byId.ManagerId is not null && byId.ManagerId != expectedManagerId)
         {
             throw SeedConflict("Development department is assigned to an unexpected manager.");
         }

@@ -9,6 +9,8 @@ namespace CorporateRequestManagement.Web.Api;
 public sealed record ApiProblem(string? Code, string? Detail, string? TraceId, IReadOnlyDictionary<string, string[]> Errors)
 {
     public static ApiProblem Empty { get; } = new(null, null, null, new Dictionary<string, string[]>());
+    public static ApiProblem ServiceUnavailable { get; } = new("backend.service_unavailable", "Servise şu anda ulaşılamıyor. Lütfen kısa bir süre sonra yeniden deneyin.", null, new Dictionary<string, string[]>());
+    public static ApiProblem GatewayTimeout { get; } = new("backend.gateway_timeout", "İşlem zamanında tamamlanamadı. Lütfen yeniden deneyin.", null, new Dictionary<string, string[]>());
 }
 
 public sealed record WebApiResult<T>(HttpStatusCode StatusCode, T? Value, ApiProblem Problem)
@@ -26,17 +28,32 @@ internal sealed class BackendApiGateway(HttpClient client, IUserTokenStore store
 {
     public async Task<WebApiResult<T>> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
-        WebUserSession? session = await store.GetAsync(cancellationToken);
-        if (session is null) { await localAuthenticationState.ClearAsync(cancellationToken); return new(HttpStatusCode.Unauthorized, default, ApiProblem.Empty); }
-        using HttpResponseMessage first = await SendCoreAsync(method, path, body, session.AccessToken, cancellationToken);
-        if (first.StatusCode != HttpStatusCode.Unauthorized) return await ReadAsync<T>(first, cancellationToken);
+        try
+        {
+            WebUserSession? session = await store.GetAsync(cancellationToken);
+            if (session is null) { await localAuthenticationState.ClearAsync(cancellationToken); return new(HttpStatusCode.Unauthorized, default, ApiProblem.Empty); }
+            using HttpResponseMessage first = await SendCoreAsync(method, path, body, session.AccessToken, cancellationToken);
+            if (first.StatusCode != HttpStatusCode.Unauthorized) return await ReadAsync<T>(first, cancellationToken);
 
-        string sessionId = accessor.HttpContext?.Session.Id ?? throw new InvalidOperationException("Active session required.");
-        WebUserSession? current = await refreshCoordinator.ExecuteAsync(sessionId, () => RefreshAsync(session, cancellationToken), cancellationToken);
-        if (current is null) return new(HttpStatusCode.Unauthorized, default, ApiProblem.Empty);
-        using HttpResponseMessage retry = await SendCoreAsync(method, path, body, current.AccessToken, cancellationToken);
-        if (retry.StatusCode == HttpStatusCode.Unauthorized) await localAuthenticationState.ClearAsync(cancellationToken);
-        return await ReadAsync<T>(retry, cancellationToken);
+            string sessionId = accessor.HttpContext?.Session.Id ?? throw new InvalidOperationException("Active session required.");
+            WebUserSession? current = await refreshCoordinator.ExecuteAsync(sessionId, () => RefreshAsync(session, cancellationToken), cancellationToken);
+            if (current is null) return new(HttpStatusCode.Unauthorized, default, ApiProblem.Empty);
+            using HttpResponseMessage retry = await SendCoreAsync(method, path, body, current.AccessToken, cancellationToken);
+            if (retry.StatusCode == HttpStatusCode.Unauthorized) await localAuthenticationState.ClearAsync(cancellationToken);
+            return await ReadAsync<T>(retry, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new(HttpStatusCode.GatewayTimeout, default, ApiProblem.GatewayTimeout);
+        }
+        catch (HttpRequestException)
+        {
+            return new(HttpStatusCode.ServiceUnavailable, default, ApiProblem.ServiceUnavailable);
+        }
+        catch (HttpIOException)
+        {
+            return new(HttpStatusCode.ServiceUnavailable, default, ApiProblem.ServiceUnavailable);
+        }
     }
 
     private async Task<WebUserSession?> RefreshAsync(WebUserSession failed, CancellationToken cancellationToken)
@@ -62,6 +79,8 @@ internal sealed class BackendApiGateway(HttpClient client, IUserTokenStore store
     {
         if (response.IsSuccessStatusCode)
         {
+            if (response.StatusCode == HttpStatusCode.NoContent && typeof(T) == typeof(object))
+                return new(response.StatusCode, (T)(object)new object(), ApiProblem.Empty);
             T? value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: cancellationToken);
             return new(response.StatusCode, value, ApiProblem.Empty);
         }

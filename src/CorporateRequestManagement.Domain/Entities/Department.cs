@@ -51,6 +51,20 @@ public sealed class Department : SoftDeletableEntity
         return new Department(id, name, managerId, createdDate);
     }
 
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new DomainRuleException("department.name_required", "Departman adı zorunludur.");
+        string trimmed = name.Trim();
+        if (trimmed.Length > NameMaxLength) throw new DomainRuleException("department.name_too_long", "Departman adı izin verilen uzunluğu aşıyor.");
+        Name = trimmed;
+    }
+
+    public void AssignManager(Guid? managerId)
+    {
+        if (managerId == Guid.Empty) throw new DomainRuleException("department.manager_invalid", "Yönetici kimliği boş olamaz.");
+        ManagerId = managerId;
+    }
+
     public void SoftDelete(DateTimeOffset deletedDate, Guid deletedByUserId)
     {
         if (deletedDate < CreatedDate)

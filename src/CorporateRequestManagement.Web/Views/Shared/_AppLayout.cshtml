@@ -13,8 +13,9 @@
       <a asp-controller="Requests" asp-action="Index"><i class="ki-outline ki-document" aria-hidden="true"></i>Taleplerim</a>
       <a asp-controller="Requests" asp-action="Create"><svg class="crm-nav-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M14 3.75H6.75a2 2 0 0 0-2 2v12.5a2 2 0 0 0 2 2h10.5a2 2 0 0 0 2-2V9m-5-5.25L19.25 9H14V3.75ZM12 11v6m-3-3h6" /></svg>Yeni Talep</a>
     }
-    @if (User.IsInRole("Manager")) { <a asp-controller="ManagerApprovals" asp-action="Index"><i class="ki-outline ki-shield-tick" aria-hidden="true"></i>Yönetici Onayları</a> }
-    @if (User.IsInRole("Admin")) { <a asp-controller="AdminApprovals" asp-action="Index"><i class="ki-outline ki-shield-search" aria-hidden="true"></i>Yönetim Onayları</a> }
+    @if (User.IsInRole("Manager")) { <a asp-controller="ManagerRequests" asp-action="Index"><i class="ki-outline ki-folder" aria-hidden="true"></i>Departman Talepleri</a><a asp-controller="ManagerApprovals" asp-action="Index"><i class="ki-outline ki-shield-tick" aria-hidden="true"></i>Yönetici Onayları</a> }
+    @if (User.IsInRole("Admin")) { <a asp-controller="AdminRequests" asp-action="Index"><i class="ki-outline ki-document" aria-hidden="true"></i>Tüm Talepler</a><a asp-controller="AdminUsers" asp-action="Index"><i class="ki-outline ki-people" aria-hidden="true"></i>Kullanıcılar</a><a asp-controller="AdminDepartments" asp-action="Index"><i class="ki-outline ki-briefcase" aria-hidden="true"></i>Departmanlar</a><a asp-controller="AdminAuditLogs" asp-action="Index"><i class="ki-outline ki-notepad" aria-hidden="true"></i>İşlem Geçmişi</a><a asp-controller="AdminApprovals" asp-action="Index"><i class="ki-outline ki-shield-search" aria-hidden="true"></i>Yönetim Onayları</a> }
+    <a asp-controller="Profile" asp-action="Index"><i class="ki-outline ki-user" aria-hidden="true"></i>Profilim</a>
   </nav>
   <div class="crm-sidebar-foot"><span class="crm-avatar">@((User.Identity?.Name ?? "K")[0])</span><span><strong>@User.Identity?.Name</strong><small>@UiDisplay.Role(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)</small></span></div>
 </aside>

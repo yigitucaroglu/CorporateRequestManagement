@@ -15,4 +15,10 @@ public interface IRefreshTokenRepository
     Task AddAsync(
         RefreshToken refreshToken,
         CancellationToken cancellationToken = default);
+
+}
+
+public interface IUserTokenRevocationRepository
+{
+    Task RevokeActiveForUserAsync(Guid userId, DateTimeOffset revokedAt, CancellationToken cancellationToken = default);
 }

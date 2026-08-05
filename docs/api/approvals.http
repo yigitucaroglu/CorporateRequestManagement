@@ -1,4 +1,4 @@
-@api = https://localhost:7100
+@api = https://localhost:7001
 @managerToken = PASTE_MANAGER_ACCESS_TOKEN_HERE
 @adminToken = PASTE_ADMIN_ACCESS_TOKEN_HERE
 @ownerToken = PASTE_OWNER_ACCESS_TOKEN_HERE
@@ -9,13 +9,13 @@
 POST {{api}}/api/auth/login
 Content-Type: application/json
 
-{ "email": "manager@crm.local", "password": "CrmDemo!2026" }
+{ "email": "manager@company.com", "password": "<development-password>" }
 
 ### Development admin login (token değerini adminToken alanına kopyalayın)
 POST {{api}}/api/auth/login
 Content-Type: application/json
 
-{ "email": "admin@crm.local", "password": "CrmDemo!2026" }
+{ "email": "admin@company.com", "password": "<development-password>" }
 
 ### Manager pending queue
 GET {{api}}/api/approvals/manager?pageNumber=1&pageSize=20&sortBy=submittedDate&sortDirection=Ascending

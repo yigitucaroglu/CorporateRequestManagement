@@ -1,11 +1,11 @@
 @model PaginationViewModel
 @if (Model.TotalCount > 0)
 {
-    var routes = new Dictionary<string, string?>(Model.QueryParameters, StringComparer.OrdinalIgnoreCase);
+    string currentPath = Context.Request.PathBase.Add(Context.Request.Path).Value ?? "/";
     <footer class="crm-list-footer">
         <div class="crm-list-meta">
             <span>Toplam @Model.TotalCount kayıt</span>
-            <form method="get" class="crm-page-size-form">
+            <form method="get" action="@currentPath" class="crm-page-size-form">
                 @foreach (var query in Model.QueryParameters.Where(item => !item.Key.Equals("PageNumber", StringComparison.OrdinalIgnoreCase) && !item.Key.Equals("PageSize", StringComparison.OrdinalIgnoreCase)))
                 {
                     <input type="hidden" name="@query.Key" value="@query.Value" />
@@ -24,8 +24,7 @@
         <nav class="crm-pagination" aria-label="Sayfalar">
             @if (Model.HasPreviousPage)
             {
-                routes["PageNumber"] = (Model.CurrentPage - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                <a asp-all-route-data="@routes" rel="prev">Önceki</a>
+                <a href="@PaginationUrl.Build(Context.Request.PathBase, Context.Request.Path, Model.QueryParameters, Model.CurrentPage - 1, Model.PageSize)" rel="prev">Önceki</a>
             }
             else
             {
@@ -35,14 +34,13 @@
             {
                 if (page.HasValue)
                 {
-                    routes["PageNumber"] = page.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     if (page.Value == Model.CurrentPage)
                     {
                         <span class="crm-page-current" aria-current="page">@(page.Value)</span>
                     }
                     else
                     {
-                        <a asp-all-route-data="@routes">@(page.Value)</a>
+                        <a href="@PaginationUrl.Build(Context.Request.PathBase, Context.Request.Path, Model.QueryParameters, page.Value, Model.PageSize)">@(page.Value)</a>
                     }
                 }
                 else
@@ -52,8 +50,7 @@
             }
             @if (Model.HasNextPage)
             {
-                routes["PageNumber"] = (Model.CurrentPage + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                <a asp-all-route-data="@routes" rel="next">Sonraki</a>
+                <a href="@PaginationUrl.Build(Context.Request.PathBase, Context.Request.Path, Model.QueryParameters, Model.CurrentPage + 1, Model.PageSize)" rel="next">Sonraki</a>
             }
             else
             {

@@ -21,7 +21,8 @@ public sealed class UniqueConstraintIntegrationTests(SqlServerDatabaseFixture fi
         await context.SaveChangesAsync();
         context.Users.Add(User.Create(Guid.NewGuid(), "Other", "Employee", principals.Employee.Email, "hash", UserRole.Employee, principals.Department.Id, Now));
 
-        await AssertUniqueViolationAsync(() => context.SaveChangesAsync());
+        var exception = await Assert.ThrowsAsync<CorporateRequestManagement.Application.Common.Exceptions.ConflictException>(() => context.SaveChangesAsync());
+        Assert.Equal("user.email_exists", exception.Code);
     }
 
     [Fact]

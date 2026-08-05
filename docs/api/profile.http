@@ -1,0 +1,10 @@
+@api = https://localhost:7001
+@token = <authenticated-access-token>
+GET {{api}}/api/account/profile
+Authorization: Bearer {{token}}
+###
+POST {{api}}/api/account/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"currentPassword":"<current-password>","newPassword":"<new-strong-password>","confirmNewPassword":"<new-strong-password>"}

@@ -1,0 +1,18 @@
+@model CreateDepartmentManagerPage
+@{ ViewData["Title"] = "Yeni Yönetici"; }
+<div class="crm-page-head"><div><a class="crm-back" asp-action="Details" asp-route-id="@Model.Department.Id">← Departmana dön</a><h2>Yeni Yönetici Oluştur ve Ata</h2><p><strong>@Model.Department.Name</strong> departmanı için yönetici hesabı oluşturun.</p></div></div>
+@if (ViewData["SafeErrorMessage"] is string errorMessage) { <div class="crm-alert crm-alert-danger" role="alert">@errorMessage</div> }
+<section class="crm-card crm-form-card"><form method="post" autocomplete="off">
+    <div asp-validation-summary="ModelOnly" class="crm-validation-summary"></div>
+    <div class="crm-form-section"><h3>Kişisel Bilgiler</h3><div class="crm-form-grid">
+        <div class="crm-field"><label for="firstName">Ad</label><input id="firstName" name="firstName" value="@Model.FirstName" required/><span class="crm-field-error">@Html.ValidationMessage("FirstName")</span></div>
+        <div class="crm-field"><label for="lastName">Soyad</label><input id="lastName" name="lastName" value="@Model.LastName" required/><span class="crm-field-error">@Html.ValidationMessage("LastName")</span></div>
+        <div class="crm-field crm-span-2"><label for="email">E-posta</label><input id="email" name="email" type="email" value="@Model.Email" required class="@(ViewData.ModelState["email"]?.Errors.Count > 0 ? "input-validation-error" : null)" aria-invalid="@(ViewData.ModelState["email"]?.Errors.Count > 0 ? "true" : "false")" aria-describedby="email-error"/><span id="email-error" class="crm-field-error">@Html.ValidationMessage("email")</span></div>
+    </div></div>
+    <div class="crm-form-section"><h3>Başlangıç Parolası</h3><div class="crm-form-grid">
+        <div class="crm-field"><label for="initialPassword">Parola</label><input id="initialPassword" name="initialPassword" type="password" required autocomplete="new-password"/><span class="crm-field-error">@Html.ValidationMessage("InitialPassword")@Html.ValidationMessage("Password")</span></div>
+        <div class="crm-field"><label for="confirmPassword">Parola tekrar</label><input id="confirmPassword" name="confirmPassword" type="password" required autocomplete="new-password"/><span class="crm-field-error">@Html.ValidationMessage("ConfirmPassword")</span></div>
+        <label class="crm-check"><input name="isActive" type="checkbox" value="true" checked/><span>Hesap aktif</span></label>
+    </div></div>
+    <div class="crm-form-actions"><a class="crm-btn crm-btn-secondary" asp-action="Details" asp-route-id="@Model.Department.Id">İptal</a><button class="crm-btn crm-btn-primary">Yöneticiyi Oluştur ve Ata</button></div>
+</form></section>

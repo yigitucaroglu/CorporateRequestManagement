@@ -1,1 +1,14 @@
-@{ViewData["Title"]="Talep Bulunamadı";}<section class="crm-state-page crm-card"><span class="crm-empty-icon"><i class="ki-outline ki-search-list"></i></span><h2>Talep bulunamadı</h2><p>Aradığınız kayıt mevcut olmayabilir veya bu kaydı görüntüleme yetkiniz bulunmayabilir.</p><a class="crm-btn crm-btn-primary" asp-controller="Dashboard" asp-action="Index">Ana Sayfaya Dön</a></section>
+@model NotFoundPage
+@{
+    var state = Model ?? new NotFoundPage(
+        "Talep bulunamadı",
+        "Aradığınız talep mevcut olmayabilir veya bu kaydı görüntüleme yetkiniz bulunmayabilir.",
+        "Taleplerime Dön", "Requests", "Index");
+    ViewData["Title"] = state.Title;
+}
+<section class="crm-state-page crm-card">
+    <span class="crm-empty-icon"><i class="ki-outline ki-search-list"></i></span>
+    <h2>@state.Title</h2>
+    <p>@state.Message</p>
+    <a class="crm-btn crm-btn-primary" asp-controller="@state.Controller" asp-action="@state.Action">@state.ReturnText</a>
+</section>

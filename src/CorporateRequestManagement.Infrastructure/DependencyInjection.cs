@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text;
 using CorporateRequestManagement.Application.Abstractions.Approvals;
 using CorporateRequestManagement.Infrastructure.Approvals;
+using CorporateRequestManagement.Application.Features.Administration;
 
 namespace CorporateRequestManagement.Infrastructure;
 
@@ -29,9 +30,11 @@ public static class DependencyInjection
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
         services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
+        services.AddScoped<IAdministrationQueryService, AdministrationReadStore>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IUserTokenRevocationRepository, RefreshTokenRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<ITransactionExecutor, EfTransactionExecutor>();
@@ -56,9 +59,11 @@ public static class DependencyInjection
         services.AddScoped<ICorporateRequestReadRepository, CorporateRequestReadRepository>();
         services.AddScoped<IApprovalReadRepository, ApprovalReadRepository>();
         services.AddScoped<IDashboardReadRepository, DashboardReadRepository>();
+        services.AddScoped<IAdministrationQueryService, AdministrationReadStore>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IUserTokenRevocationRepository, RefreshTokenRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<ITransactionExecutor, EfTransactionExecutor>();

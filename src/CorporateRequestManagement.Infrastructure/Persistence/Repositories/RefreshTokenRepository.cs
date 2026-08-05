@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CorporateRequestManagement.Infrastructure.Persistence.Repositories;
 
-internal sealed class RefreshTokenRepository(ApplicationDbContext context) : IRefreshTokenRepository
+internal sealed class RefreshTokenRepository(ApplicationDbContext context) : IRefreshTokenRepository, IUserTokenRevocationRepository
 {
     public Task<RefreshToken?> GetByIdAsync(Guid refreshTokenId, CancellationToken cancellationToken = default)
     {
@@ -23,5 +23,13 @@ internal sealed class RefreshTokenRepository(ApplicationDbContext context) : IRe
     public async Task AddAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default)
     {
         await context.RefreshTokens.AddAsync(refreshToken, cancellationToken);
+    }
+
+    public async Task RevokeActiveForUserAsync(Guid userId, DateTimeOffset revokedAt, CancellationToken cancellationToken = default)
+    {
+        List<RefreshToken> tokens = await context.RefreshTokens
+            .Where(token => token.UserId == userId && token.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (RefreshToken token in tokens) token.Revoke(revokedAt, "system", null);
     }
 }

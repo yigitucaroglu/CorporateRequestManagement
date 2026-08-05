@@ -248,6 +248,12 @@ public sealed class AuthenticationWebFactory : WebApplicationFactory<WebProgram>
     public FakeRequestsApiClient Requests { get; } = new();
     public FakeApprovalsApiClient Approvals { get; } = new();
     public FakeDashboardApiClient Dashboard { get; } = new();
+    public FakeAdminUsersApiClient AdminUsers { get; } = new();
+    public FakeAdminDepartmentsApiClient AdminDepartments { get; } = new();
+    public FakeAdminRequestsApiClient AdminRequests { get; } = new();
+    public FakeManagerRequestsApiClient ManagerRequests { get; } = new();
+    public FakeProfileApiClient Profile { get; } = new();
+    public FakeAuditLogsApiClient AuditLogs { get; } = new();
 
     public HttpClient CreateSecureClient() => CreateClient(new WebApplicationFactoryClientOptions
     {
@@ -267,11 +273,23 @@ public sealed class AuthenticationWebFactory : WebApplicationFactory<WebProgram>
             services.RemoveAll<IRequestsApiClient>();
             services.RemoveAll<IApprovalsApiClient>();
             services.RemoveAll<IDashboardApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IAdminUsersApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IAdminDepartmentsApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IAdminRequestsApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IManagerRequestsApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IProfileApiClient>();
+            services.RemoveAll<webapp::CorporateRequestManagement.Web.Api.IAuditLogsApiClient>();
             services.AddSingleton<IAuthenticationApiClient>(Authentication);
             services.AddSingleton<IAuthenticatedUserApiClient>(new FakeAuthenticatedUserApiClient(Authentication));
             services.AddSingleton<IRequestsApiClient>(Requests);
             services.AddSingleton<IApprovalsApiClient>(Approvals);
             services.AddSingleton<IDashboardApiClient>(Dashboard);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IAdminUsersApiClient>(AdminUsers);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IAdminDepartmentsApiClient>(AdminDepartments);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IAdminRequestsApiClient>(AdminRequests);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IManagerRequestsApiClient>(ManagerRequests);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IProfileApiClient>(Profile);
+            services.AddSingleton<webapp::CorporateRequestManagement.Web.Api.IAuditLogsApiClient>(AuditLogs);
         });
     }
 }
@@ -337,8 +355,11 @@ public sealed class FakeApprovalsApiClient : IApprovalsApiClient
     public int TotalCount { get; set; }
     public bool? LastAdmin { get; private set; }
     public webapp::CorporateRequestManagement.Web.Api.ApprovalListQuery? LastQuery { get; private set; }
+    public webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract? Decision { get; set; }
+    public HttpStatusCode DecisionStatus { get; set; } = HttpStatusCode.NotFound;
+    public webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract? Detail { get; set; }
     public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>>> GetQueueAsync(bool admin,webapp::CorporateRequestManagement.Web.Api.ApprovalListQuery query,CancellationToken cancellationToken=default){LastAdmin=admin;LastQuery=query;int total=TotalCount==0?Items.Count:TotalCount;int pages=total==0?0:(int)Math.Ceiling(total/(double)query.PageSize);var page=new webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>(Items,total,query.PageNumber,query.PageSize,pages,query.PageNumber>1,query.PageNumber<pages);return Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.PagedContract<webapp::CorporateRequestManagement.Web.Api.ApprovalQueueItemContract>>(HttpStatusCode.OK,page,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));}
-    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> GetDetailAsync(bool admin,Guid id,CancellationToken cancellationToken=default)=>Fail();
-    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> DecideAsync(bool admin,Guid id,bool approve,string rowVersion,string? reason,CancellationToken cancellationToken=default)=>Fail();
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> GetDetailAsync(bool admin,Guid id,CancellationToken cancellationToken=default)=>Detail is null?Fail():Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>(HttpStatusCode.OK,Detail,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
+    public Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> DecideAsync(bool admin,Guid id,bool approve,string rowVersion,string? reason,CancellationToken cancellationToken=default)=>Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>(DecisionStatus,Decision,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
     private static Task<webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>> Fail()=>Task.FromResult(new webapp::CorporateRequestManagement.Web.Api.WebApiResult<webapp::CorporateRequestManagement.Web.Api.ApprovalDetailContract>(HttpStatusCode.NotFound,null,webapp::CorporateRequestManagement.Web.Api.ApiProblem.Empty));
 }

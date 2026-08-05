@@ -1,25 +1,37 @@
-@baseUrl = http://localhost:5100
-@accessToken = ACCESS_TOKEN_BURAYA
-@refreshToken = REFRESH_TOKEN_BURAYA
+@api = https://localhost:7001
+@accessToken = <development-access-token>
+@refreshToken = <development-refresh-token>
 
-### Development login
-POST {{baseUrl}}/api/auth/login
+### Development-only Admin login — parola için README seed tablosunu kullanın
+POST {{api}}/api/auth/login
 Content-Type: application/json
 
-{"email":"admin@crm.local","password":"CrmDemo!2026"}
+{"email":"admin@company.com","password":"<development-demo-password>"}
+
+### Development-only Manager login
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"manager@company.com","password":"<development-demo-password>"}
+
+### Development-only Employee login
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"employee@company.com","password":"<development-demo-password>"}
 
 ### Current user
-GET {{baseUrl}}/api/auth/me
+GET {{api}}/api/auth/me
 Authorization: Bearer {{accessToken}}
 
-### Refresh (yanıttaki yeni token değerlerini elle değiştirin)
-POST {{baseUrl}}/api/auth/refresh
+### Rotate refresh token — yanıttaki değerleri yalnız yerel placeholder değişkenlerine aktarın
+POST {{api}}/api/auth/refresh
 Content-Type: application/json
 
 {"refreshToken":"{{refreshToken}}"}
 
-### Revoke
-POST {{baseUrl}}/api/auth/revoke
+### Revoke refresh token
+POST {{api}}/api/auth/revoke
 Content-Type: application/json
 
 {"refreshToken":"{{refreshToken}}"}

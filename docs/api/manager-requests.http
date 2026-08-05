@@ -1,0 +1,7 @@
+@api = https://localhost:7001
+@token = <manager-access-token>
+GET {{api}}/api/manager/requests?searchTerm=ekipman&minAmount=1&maxAmount=20000
+Authorization: Bearer {{token}}
+###
+GET {{api}}/api/manager/requests/<request-guid>
+Authorization: Bearer {{token}}

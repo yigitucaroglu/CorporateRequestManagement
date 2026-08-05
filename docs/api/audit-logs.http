@@ -1,0 +1,16 @@
+@api = https://localhost:7001
+@token = <admin-access-token>
+@auditId = <audit-guid>
+@actorUserId = <actor-user-guid>
+
+### Audit list — paging, entity, action, actor ve tarih filtreleri
+GET {{api}}/api/audit-logs?pageNumber=1&pageSize=20&entityName=User&action=Updated&userId={{actorUserId}}&createdFrom=2026-01-01T00:00:00Z&createdTo=2026-12-31T23:59:59Z&sortDirection=Descending
+Authorization: Bearer {{token}}
+
+### Audit detail
+GET {{api}}/api/audit-logs/{{auditId}}
+Authorization: Bearer {{token}}
+
+### Audit actor lookup — UI ad-soyad/e-posta seçimi için kullanır
+GET {{api}}/api/audit-logs/actors
+Authorization: Bearer {{token}}

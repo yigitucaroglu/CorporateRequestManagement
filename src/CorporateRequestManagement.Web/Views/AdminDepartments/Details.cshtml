@@ -1,0 +1,38 @@
+@model AdminDepartmentDetailsPage
+@{ var d = Model.Department; ViewData["Title"] = d.Name; }
+<div class="crm-page-head">
+    <div class="crm-detail-head__copy"><a class="crm-back" asp-action="Index">← Departmanlara dön</a><h2>@d.Name</h2><p>Departman yapısı ve yönetici ataması</p></div>
+    <a class="crm-btn crm-btn-secondary" asp-action="Edit" asp-route-id="@d.Id">Düzenle</a>
+</div>
+@if (ViewData["SafeErrorMessage"] is string errorMessage) { <div class="crm-alert crm-alert-danger" role="alert">@errorMessage</div> }
+<div class="crm-detail-grid">
+    <section class="crm-card">
+        <div class="crm-detail-meta">
+            <div><span>Yönetici</span><strong>@(d.ManagerName ?? "Yönetici atanmadı")</strong></div>
+            <div><span>Durum</span><strong>@if (!d.ManagerId.HasValue) { <span class="crm-badge crm-badge-warning">Yönetici ataması bekliyor</span> } else { <span class="crm-badge crm-badge-success">Yönetici atanmış</span> }</strong></div>
+            <div><span>Aktif kullanıcı</span><strong>@d.ActiveUserCount</strong></div><div><span>Talep sayısı</span><strong>@d.ActiveRequestCount</strong></div>
+        </div>
+        <div class="crm-section-head"><div><h3>Yönetici Ataması</h3><p>Yalnız bu departmandaki aktif yöneticiler seçilebilir.</p></div></div>
+        @if (Model.EligibleManagers.Count == 0)
+        {
+            <div class="crm-empty crm-empty-compact crm-manager-empty"><span class="crm-empty-icon" aria-hidden="true"><i class="ki-outline ki-information-5"></i></span>
+                <h4>Bu departman için uygun yönetici bulunmuyor</h4>
+                <p>Bu departmanda yönetici rolüne sahip aktif bir kullanıcı bulunmuyor. Bu departmana bağlı, aktif ve Yönetici rolüne sahip bir kullanıcı oluşturun veya mevcut kullanıcı rollerini düzenleyin.</p>
+                <div class="crm-empty-actions"><a class="crm-btn crm-btn-primary" asp-action="CreateManager" asp-route-id="@d.Id"><i class="ki-outline ki-user-plus" aria-hidden="true"></i>Yeni Yönetici Oluştur ve Ata</a>
+                <a class="crm-btn crm-btn-secondary" asp-controller="AdminUsers" asp-action="Index" asp-route-departmentId="@d.Id">Kullanıcıları Gör</a></div>
+            </div>
+            <div class="crm-manager-empty__assignment"><div class="crm-field"><label for="managerId">Departman yöneticisi</label><select id="managerId" disabled><option>Uygun yönetici bulunmuyor</option></select></div>
+            <div class="crm-form-actions"><button class="crm-btn crm-btn-primary" type="button" disabled>Yöneticiyi Kaydet</button></div></div>
+        }
+        else
+        {
+            <form asp-action="AssignManager" asp-route-id="@d.Id" method="post">
+                <div asp-validation-summary="All" class="crm-validation-summary"></div>
+                <div class="crm-field"><label for="managerId">Departman yöneticisi</label><select id="managerId" name="managerId">
+                    <option value="">Yönetici atanmamış</option>@foreach (var manager in Model.EligibleManagers) { <option value="@manager.Id" selected="@(d.ManagerId == manager.Id)">@manager.FullName — @manager.Email</option> }
+                </select></div><div class="crm-form-actions"><button class="crm-btn crm-btn-primary" type="submit">@(d.ManagerId.HasValue ? "Yöneticiyi Güncelle" : "Yöneticiyi Ata")</button></div>
+            </form>
+        }
+    </section>
+    <section class="crm-card crm-danger-zone"><h3>Departmanı Sil</h3><p>Bağımlı aktif kayıt bulunmuyorsa departman aktif listelerden kaldırılır.</p><form asp-action="Delete" asp-route-id="@d.Id" method="post" data-confirm="Bu departman aktif listelerden kaldırılacaktır. Devam etmek istiyor musunuz?"><button class="crm-btn crm-btn-danger">Departmanı Sil</button></form></section>
+</div>
