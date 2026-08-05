@@ -2,7 +2,8 @@
 .SYNOPSIS
 Phase 8A API/Web process tree'lerini güvenli biçimde durdurur.
 .DESCRIPTION
-State veya canonical portlardan process bulur; command line repository ve proje doğrulamasından sonra yalnız ilgili tree'yi kapatır.
+State veya canonical portlardan process bulur; command line repository ve proje doğrulamasından
+sonra yalnız ilgili process tree'yi kapatır. Global veya doğrulanmamış dotnet processlerini kapatmaz.
 .PARAMETER ApiUrl
 Fallback API URL'i.
 .PARAMETER WebUrl
@@ -10,6 +11,8 @@ Fallback Web URL'i.
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\scripts\stop-development.ps1
 #>
+
+
 [CmdletBinding()]
 param([string]$ApiUrl='https://localhost:7001',[string]$WebUrl='https://localhost:7002')
 Set-StrictMode -Version Latest

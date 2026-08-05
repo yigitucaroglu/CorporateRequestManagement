@@ -2,7 +2,9 @@
 .SYNOPSIS
 Unit, gerçek SQL Server integration ve migration drift kapılarını çalıştırır.
 .DESCRIPTION
-Test bağlantısını process-scope'ta güvenli çözer; restore/build/test/drift sonuçlarından herhangi biri başarısızsa non-zero çıkar.
+Test bağlantısını process-scope'ta güvenli çözer; restore/build/test/drift sonuçlarından herhangi
+biri başarısızsa non-zero çıkar. Integration testleri service-based gerçek SQL Server bağlantısı
+ve CREATE DATABASE yetkisi gerektirir.
 .PARAMETER UnitOnly
 Yalnız unit testleri çalıştırır.
 .PARAMETER IntegrationOnly
@@ -20,6 +22,8 @@ VSTest normal verbosity kullanır; aksi halde minimal kullanır.
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
 #>
+
+
 [CmdletBinding()]
 param(
     [switch]$UnitOnly,

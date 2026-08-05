@@ -2,7 +2,8 @@
 .SYNOPSIS
 API ve Web uygulamalarını güvenli sırayla başlatır.
 .DESCRIPTION
-Secret ve port preflight yapar, API readiness sonrasında Web'i başlatır ve Git-ignored runtime state yazar.
+Secret ve port preflight yapar, önce API'yi başlatıp readiness sonucunu doğrular, ardından
+Web'i başlatır ve Git-ignored runtime state yazar.
 .PARAMETER Configuration
 Debug veya Release build configuration.
 .PARAMETER NoBrowser
@@ -18,6 +19,8 @@ Her uygulama için readiness timeout.
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\scripts\run-development.ps1 -NoBrowser
 #>
+
+
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration = 'Debug',

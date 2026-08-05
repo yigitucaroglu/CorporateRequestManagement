@@ -2,7 +2,9 @@
 .SYNOPSIS
 Development ortamını güvenli ve idempotent biçimde hazırlar.
 .DESCRIPTION
-SQL bağlantısını doğrular, API User Secrets değerlerini merge eder, HTTPS/restore/build ve isteğe bağlı migration-seed işlemini çalıştırır.
+SQL bağlantısını doğrular, API User Secrets değerlerini mevcut değerleri koruyarak birleştirir,
+HTTPS/restore/build ve isteğe bağlı migration-seed işlemini çalıştırır. SQL bağlantısı ve
+cryptographic JWT signing key Git'e yazılmaz; API User Secrets alanında saklanır.
 .PARAMETER NonInteractive
 Prompt kullanmaz; bağlantı environment variable üzerinden alınmalıdır.
 .PARAMETER Server
@@ -28,6 +30,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1 -NonInteractive -ConnectionStringEnvironmentVariable CRM_DEVELOPMENT_SQLSERVER_CONNECTION
 #>
+
+
 [CmdletBinding()]
 param(
     [switch]$NonInteractive,
