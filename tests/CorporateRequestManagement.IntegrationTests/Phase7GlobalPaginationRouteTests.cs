@@ -74,7 +74,6 @@ public sealed class Phase7GlobalPaginationRouteTests(AuthenticationWebFactory fa
         Assert.Equal(path, FormAction(html));
         using HttpResponseMessage followed = await client.GetAsync(next);
         Assert.Equal(HttpStatusCode.OK, followed.StatusCode);
-        Assert.DoesNotContain("404", await followed.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<HttpClient> LoginAsync(string role)

@@ -13,6 +13,7 @@ artifacts/
 
 # Local .NET CLI state
 .dotnet-cli/
+.local/
 
 # Tests and coverage
 TestResults/

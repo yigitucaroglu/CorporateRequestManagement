@@ -2,6 +2,30 @@
 
 Çalışanların kurumsal talepler oluşturduğu ve yönetici/yönetim onay akışlarından geçirdiği .NET 8 örnek uygulamasıdır.
 
+## Quick Start
+
+Ön koşullar: Git, Windows PowerShell 5.1 veya PowerShell 7, .NET 8 SDK, HTTPS developer certificate ve `CREATE DATABASE` yetkili service-based SQL Server erişimi.
+
+İlk kurulum; SQL bağlantısını doğrular, connection string ile cryptographic JWT signing key'i Git dışındaki API User Secrets store'una yazar, Release build alır ve Development migration/seed işlemini idempotent çalıştırır:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1
+```
+
+Uygulamaları API önce, Web sonra olmak üzere readiness kontrollü başlatmak, durdurmak ve bütün kalite kapılarını çalıştırmak için:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-development.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-development.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
+```
+
+- API Swagger: `https://localhost:7001/swagger`
+- Web: `https://localhost:7002`
+- Development hesapları: aşağıdaki **YALNIZCA DEVELOPMENT** seed tablosu
+
+Demo credentials Production ortamında kullanılmamalıdır. Setup script'i secret değerlerini terminale veya repository'ye yazdırmaz; mevcut ilgisiz User Secrets anahtarlarını korur. Script kullanılamayan ortamlarda aşağıdaki manuel restore, User Secrets, initializer ve run adımları ileri seviye alternatif olarak kullanılabilir. Sorun giderme için [troubleshooting](docs/troubleshooting.md) belgesine bakın.
+
 ## Mimari
 
 Backend Clean Architecture sınırlarını izler:
