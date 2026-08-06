@@ -529,5 +529,4 @@ derlenmiş CSS, JavaScript, font ve görsel alt kümesi dahil edilmiştir.
 - Ayrıntılı bildirimler
   [third-party notices](docs/third-party-notices.md) belgesinde yer alır.
 
-Repository, ticari UI assetlerinin yeniden dağıtım koşullarına uygun şekilde
-private tutulur ve yalnızca değerlendirme erişimi verilen kişilerle paylaşılır.
+
