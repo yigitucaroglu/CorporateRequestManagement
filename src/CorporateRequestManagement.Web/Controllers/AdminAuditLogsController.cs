@@ -26,6 +26,6 @@ public sealed class AdminAuditLogsController(IAuditLogsApiClient api, IWebApiErr
         var result = await api.GetAsync(id, ct);
         return result.Value is null
             ? await errors.MapReadAsync(this, result.StatusCode, ct)
-            : View(new AuditDetailsPage(result.Value, Phase7Display.Changes(result.Value.OldValues), Phase7Display.Changes(result.Value.NewValues)));
+            : View(new AuditDetailsPage(result.Value, ManagementDisplay.Changes(result.Value.OldValues), ManagementDisplay.Changes(result.Value.NewValues)));
     }
 }

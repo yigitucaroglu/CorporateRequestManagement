@@ -17,7 +17,7 @@ using CorporateRequestManagement.Domain.Enums;
 namespace CorporateRequestManagement.IntegrationTests;
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7ApiIntegrationTests(SqlServerDatabaseFixture fixture) : IAsyncLifetime
+public sealed class AdministrationApiIntegrationTests(SqlServerDatabaseFixture fixture) : IAsyncLifetime
 {
     private WebApplicationFactory<Program>? factory;
     public async Task InitializeAsync()
@@ -35,8 +35,12 @@ public sealed class Phase7ApiIntegrationTests(SqlServerDatabaseFixture fixture) 
     public async Task DisposeAsync()
     {
         if (factory is not null) await factory.DisposeAsync(); await using ApplicationDbContext db = fixture.CreateContext();
-        await db.RequestApprovals.ExecuteDeleteAsync(); await db.CorporateRequests.IgnoreQueryFilters().ExecuteDeleteAsync(); await fixture.ResetDevelopmentSeedAsync();
+        await db.RequestApprovals.ExecuteDeleteAsync(); await db.CorporateRequests.IgnoreQueryFilters().ExecuteDeleteAsync();
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE [Departments] SET [ManagerId] = NULL WHERE [Id] = {0}",
+            DevelopmentSeedData.FinanceDepartmentId);
         await db.Departments.IgnoreQueryFilters().Where(x => x.Id == DevelopmentSeedData.FinanceDepartmentId).ExecuteDeleteAsync();
+        await fixture.ResetDevelopmentSeedAsync();
     }
 
     [Fact]
@@ -56,7 +60,7 @@ public sealed class Phase7ApiIntegrationTests(SqlServerDatabaseFixture fixture) 
     [Fact]
     public async Task Admin_and_manager_request_lists_should_apply_scope_amount_filter_and_soft_delete()
     {
-        using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail); using HttpClient manager = await ClientAsync(DevelopmentSeedData.ManagerEmail); using HttpClient admin = await ClientAsync(DevelopmentSeedData.AdminEmail); string title = "Phase7-" + Guid.NewGuid().ToString("N");
+        using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail); using HttpClient manager = await ClientAsync(DevelopmentSeedData.ManagerEmail); using HttpClient admin = await ClientAsync(DevelopmentSeedData.AdminEmail); string title = "Administration-" + Guid.NewGuid().ToString("N");
         using HttpResponseMessage createdResponse = await employee.PostAsJsonAsync("/api/requests", new { title, description = "Filter proof", requestType = 2, amount = 15000m });
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode); JsonElement created = await createdResponse.Content.ReadFromJsonAsync<JsonElement>(); Guid id = created.GetProperty("id").GetGuid(); string rowVersion = created.GetProperty("rowVersion").GetString()!;
         await using (AsyncServiceScope scope = factory!.Services.CreateAsyncScope())
@@ -74,9 +78,9 @@ public sealed class Phase7ApiIntegrationTests(SqlServerDatabaseFixture fixture) 
     public async Task Admin_user_department_and_password_lifecycle_should_hash_revoke_audit_and_soft_delete()
     {
         using HttpClient admin = await ClientAsync(DevelopmentSeedData.AdminEmail);
-        using HttpResponseMessage departmentResponse = await admin.PostAsJsonAsync("/api/admin/departments", new { name = "Phase 7 Test" });
+        using HttpResponseMessage departmentResponse = await admin.PostAsJsonAsync("/api/admin/departments", new { name = "Administration Test" });
         Assert.Equal(HttpStatusCode.Created, departmentResponse.StatusCode); Guid departmentId = (await departmentResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        const string initial = "Phase7Start!2026"; const string reset = "Phase7Reset!2026"; string email = $"phase7-{Guid.NewGuid():N}@company.com";
+        const string initial = "AdminStart!2026"; const string reset = "AdminReset!2026"; string email = $"admin-test-{Guid.NewGuid():N}@company.com";
         using HttpResponseMessage createResponse = await admin.PostAsJsonAsync("/api/admin/users", new { firstName = "Phase", lastName = "Seven", email, initialPassword = initial, confirmInitialPassword = initial, role = 1, departmentId, isActive = true });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode); JsonElement created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(); Guid userId = created.GetProperty("id").GetGuid(); Assert.False(created.TryGetProperty("passwordHash", out _));
         Assert.Equal(HttpStatusCode.Conflict, (await admin.PostAsJsonAsync("/api/admin/users", new { firstName = "Duplicate", lastName = "User", email = email.ToUpperInvariant(), initialPassword = initial, confirmInitialPassword = initial, role = 1, departmentId, isActive = true })).StatusCode);
@@ -184,7 +188,7 @@ public sealed class Phase7ApiIntegrationTests(SqlServerDatabaseFixture fixture) 
     }
 
     [Fact]
-    public async Task Phase7_routes_should_enforce_complete_exact_role_matrix()
+    public async Task ProtectedRoutes_WhenCalledByEachRole_ShouldEnforceExactAuthorizationMatrix()
     {
         using HttpClient anonymous = factory!.CreateClient();
         using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail);

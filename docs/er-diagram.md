@@ -1,5 +1,7 @@
 # ER Diyagramı
 
+GitHub bu Mermaid bloğunu görsel ER diyagramı olarak render eder.
+
 ```mermaid
 erDiagram
     USER {
@@ -73,14 +75,14 @@ erDiagram
         string NewValues
         datetimeoffset CreatedDate
     }
-    DEPARTMENT ||--o{ USER : contains
+    DEPARTMENT o|--o{ USER : contains
     USER o|--o{ DEPARTMENT : manages
     USER ||--o{ CORPORATE_REQUEST : creates
     DEPARTMENT ||--o{ CORPORATE_REQUEST : owns_snapshot
     CORPORATE_REQUEST ||--o{ REQUEST_APPROVAL : records
     USER ||--o{ REQUEST_APPROVAL : decides
     USER ||--o{ REFRESH_TOKEN : owns
-    REFRESH_TOKEN o|--o| REFRESH_TOKEN : replaces
+    REFRESH_TOKEN o|--o{ REFRESH_TOKEN : replaces
     USER o|--o{ AUDIT_LOG : acts
 ```
 

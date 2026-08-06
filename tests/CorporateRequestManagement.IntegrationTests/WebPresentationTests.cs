@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 namespace CorporateRequestManagement.WebTests;
 
-public sealed class Phase6WebTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
+public sealed class WebPresentationTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
 {
     [Fact]
     public async Task Login_should_use_product_identity_without_visible_template_branding_or_tokens()

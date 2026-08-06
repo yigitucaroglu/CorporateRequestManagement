@@ -9,12 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace CorporateRequestManagement.IntegrationTests;
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7AuditActorIdentityTests(SqlServerDatabaseFixture fixture)
+public sealed class AuditActorIdentityTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
     public async Task Audit_endpoints_should_resolve_deleted_and_system_actors_filter_in_sql_and_return_complete_distinct_lookup()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         DateTimeOffset now = DateTimeOffset.UtcNow;

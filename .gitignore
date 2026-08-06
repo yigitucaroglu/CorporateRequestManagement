@@ -14,6 +14,8 @@ artifacts/
 # Local .NET CLI state
 .dotnet-cli/
 .local/
+.project/
+.vendor/
 
 # Tests and coverage
 TestResults/
@@ -40,6 +42,7 @@ appsettings.*.local.json
 *.db-wal
 *.mdf
 *.ldf
+*.bak
 
 # Logs
 logs/
@@ -47,11 +50,14 @@ logs/
 
 # Frontend dependencies and generated output
 node_modules/
+*.map
 .cache/
 .parcel-cache/
 .sass-cache/
 /dist/
 /build/
+publish/
+*.pubxml.user
 
 # Raw Metronic/theme sources and archives
 metronic/

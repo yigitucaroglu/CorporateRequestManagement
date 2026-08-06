@@ -8,7 +8,7 @@ namespace CorporateRequestManagement.WebTests;
 using A = webapp::CorporateRequestManagement.Web.Authentication;
 using W = webapp::CorporateRequestManagement.Web.Api;
 
-public sealed class Phase7PremiumUiTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
+public sealed class AdministrationUiTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
 {
     [Fact]
     public async Task Admin_request_list_should_render_canonical_toolbar_actions_pagination_and_safe_turkish_text()

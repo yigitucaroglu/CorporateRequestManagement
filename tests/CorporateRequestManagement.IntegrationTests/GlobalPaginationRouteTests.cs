@@ -8,7 +8,7 @@ namespace CorporateRequestManagement.WebTests;
 using A = webapp::CorporateRequestManagement.Web.Authentication;
 using W = webapp::CorporateRequestManagement.Web.Api;
 
-public sealed class Phase7GlobalPaginationRouteTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
+public sealed class GlobalPaginationRouteTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
 {
     [Fact]
     public async Task Audit_pagination_should_preserve_canonical_route_filters_and_follow_generated_link()

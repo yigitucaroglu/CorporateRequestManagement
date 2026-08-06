@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace CorporateRequestManagement.IntegrationTests;
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7CleanDatabaseE2ETests
+public sealed class CleanDatabaseEndToEndTests
 {
     [Fact]
     public async Task Clean_database_should_migrate_seed_and_complete_single_end_to_end_management_workflow()

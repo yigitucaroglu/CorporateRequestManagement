@@ -101,7 +101,7 @@ public sealed class DevelopmentSeederIntegrationTests(SqlServerDatabaseFixture f
     }
 
     [Fact]
-    public async Task SeedAsync_WhenFinalManagerUpdateFails_ShouldRollbackEverySeedWrite()
+    public async Task SeedAsync_WhenManagerAssignmentSaveFails_ShouldRollbackEverySeedWrite()
     {
         await fixture.ResetDevelopmentSeedAsync();
         const string triggerName = "TR_IntegrationTests_BlockSeedManagerUpdate";

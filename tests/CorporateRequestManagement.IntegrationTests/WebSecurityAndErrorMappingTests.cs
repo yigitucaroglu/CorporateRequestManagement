@@ -4,21 +4,22 @@ using System.Text.RegularExpressions;
 namespace CorporateRequestManagement.WebTests;
 using A = webapp::CorporateRequestManagement.Web.Authentication;
 
-public sealed class Phase7WebSecurityAndErrorMappingTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
+public sealed class WebSecurityAndErrorMappingTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
 {
     [Theory]
-    [InlineData("/Admin/Users/Create", "AdminUsers")]
-    [InlineData("/Admin/Users/11111111-1111-1111-1111-111111111111/Edit", "AdminUsers")]
-    [InlineData("/Admin/Users/11111111-1111-1111-1111-111111111111/ResetPassword", "AdminUsers")]
-    [InlineData("/Admin/Users/11111111-1111-1111-1111-111111111111/Delete", "AdminUsers")]
-    [InlineData("/Admin/Departments/Create", "Departments")]
-    [InlineData("/Admin/Departments/11111111-1111-1111-1111-111111111111/Edit", "Departments")]
-    [InlineData("/Admin/Departments/11111111-1111-1111-1111-111111111111/Manager", "Departments")]
-    [InlineData("/Admin/Departments/11111111-1111-1111-1111-111111111111/Delete", "Departments")]
-    [InlineData("/Admin/Requests/11111111-1111-1111-1111-111111111111/Delete", "Requests")]
-    [InlineData("/Profile/ChangePassword", "Profile")]
-    public async Task Phase7_mutation_without_antiforgery_should_be_rejected_before_api_call(string path, string clientName)
+    [InlineData("user-create", "/Admin/Users/Create", "AdminUsers")]
+    [InlineData("user-edit", "/Admin/Users/11111111-1111-1111-1111-111111111111/Edit", "AdminUsers")]
+    [InlineData("user-password", "/Admin/Users/11111111-1111-1111-1111-111111111111/ResetPassword", "AdminUsers")]
+    [InlineData("user-delete", "/Admin/Users/11111111-1111-1111-1111-111111111111/Delete", "AdminUsers")]
+    [InlineData("department-create", "/Admin/Departments/Create", "Departments")]
+    [InlineData("department-edit", "/Admin/Departments/11111111-1111-1111-1111-111111111111/Edit", "Departments")]
+    [InlineData("department-manager", "/Admin/Departments/11111111-1111-1111-1111-111111111111/Manager", "Departments")]
+    [InlineData("department-delete", "/Admin/Departments/11111111-1111-1111-1111-111111111111/Delete", "Departments")]
+    [InlineData("request-delete", "/Admin/Requests/11111111-1111-1111-1111-111111111111/Delete", "Requests")]
+    [InlineData("profile-password", "/Profile/ChangePassword", "Profile")]
+    public async Task ProtectedMutation_WhenAntiforgeryTokenIsMissing_ShouldRejectBeforeApiCall(string caseName, string path, string clientName)
     {
+        Assert.NotEmpty(caseName);
         using HttpClient client = await LoginAsync("Admin"); int before = Calls(clientName);
         using HttpResponseMessage response = await client.PostAsync(path, new FormUrlEncodedContent([]));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); Assert.Equal(before, Calls(clientName));

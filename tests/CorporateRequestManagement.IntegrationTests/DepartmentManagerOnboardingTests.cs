@@ -9,15 +9,16 @@ using Microsoft.EntityFrameworkCore;
 namespace CorporateRequestManagement.IntegrationTests;
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7DepartmentManagerOnboardingTests(SqlServerDatabaseFixture fixture)
+public sealed class DepartmentManagerOnboardingTests(SqlServerDatabaseFixture fixture)
 {
     [Theory]
-    [InlineData("employee@company.com")]
-    [InlineData("Employee@Company.com")]
-    [InlineData(" employee@company.com ")]
-    public async Task Existing_email_variants_should_return_safe_conflict_without_side_effects(string email)
+    [InlineData("exact", "employee@company.com")]
+    [InlineData("case-insensitive", "Employee@Company.com")]
+    [InlineData("trimmed", " employee@company.com ")]
+    public async Task CreateManager_WhenEmailMatchesExistingUserVariant_ShouldReturnConflictWithoutSideEffects(string caseName, string email)
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        Assert.NotEmpty(caseName);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         await using ApplicationDbContext before = host.Db();
@@ -39,7 +40,7 @@ public sealed class Phase7DepartmentManagerOnboardingTests(SqlServerDatabaseFixt
     [Fact]
     public async Task Sql_unique_email_violation_should_translate_to_existing_safe_conflict_code()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         string email = $"positive-race-{Guid.NewGuid():N}@company.com";
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -57,7 +58,7 @@ public sealed class Phase7DepartmentManagerOnboardingTests(SqlServerDatabaseFixt
     [Fact]
     public async Task Create_and_assign_should_be_admin_only_atomic_and_return_no_password_material()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient anonymous = host.Factory.CreateClient();
         using HttpClient employee = await host.LoginAsync(DevelopmentSeedData.EmployeeEmail);
@@ -101,7 +102,7 @@ public sealed class Phase7DepartmentManagerOnboardingTests(SqlServerDatabaseFixt
     [InlineData("StrongPass!2026", "DifferentPass!2026")]
     public async Task Invalid_password_should_leave_department_user_and_audit_unchanged(string password, string confirmation)
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         string email = $"positive-invalid-{Guid.NewGuid():N}@company.com";

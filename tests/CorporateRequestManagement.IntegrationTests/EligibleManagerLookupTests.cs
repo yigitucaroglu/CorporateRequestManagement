@@ -9,12 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace CorporateRequestManagement.IntegrationTests;
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7EligibleManagerLookupTests(SqlServerDatabaseFixture fixture)
+public sealed class EligibleManagerLookupTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
     public async Task Eligible_manager_lookup_should_filter_in_sql_sort_deterministically_and_not_page_candidates()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         Guid departmentId = DevelopmentSeedData.FinanceDepartmentId;

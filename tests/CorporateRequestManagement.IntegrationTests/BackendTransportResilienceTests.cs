@@ -13,7 +13,7 @@ using WAuth = webapp::CorporateRequestManagement.Web.Authentication;
 
 namespace CorporateRequestManagement.WebTests;
 
-public sealed class Phase7TransportResilienceTests(AuthenticationWebFactory webFactory) : IClassFixture<AuthenticationWebFactory>
+public sealed class BackendTransportResilienceTests(AuthenticationWebFactory webFactory) : IClassFixture<AuthenticationWebFactory>
 {
     [Fact]
     public async Task Connection_failure_should_return_safe_503_without_transport_detail()

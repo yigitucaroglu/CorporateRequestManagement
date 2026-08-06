@@ -45,7 +45,9 @@ public sealed class ApprovalsApiIntegrationTests(SqlServerDatabaseFixture fixtur
         await using ApplicationDbContext context = fixture.CreateContext();
         await context.RequestApprovals.ExecuteDeleteAsync();
         await context.CorporateRequests.IgnoreQueryFilters().ExecuteDeleteAsync();
-        await context.Departments.IgnoreQueryFilters().Where(x => x.Id != DevelopmentSeedData.DepartmentId).ExecuteDeleteAsync();
+        await context.Departments.IgnoreQueryFilters()
+            .Where(x => x.Name == "Other approval department")
+            .ExecuteDeleteAsync();
         await fixture.ResetDevelopmentSeedAsync();
     }
 
@@ -114,7 +116,7 @@ public sealed class ApprovalsApiIntegrationTests(SqlServerDatabaseFixture fixtur
     }
 
     [Fact]
-    public async Task Manager_reject_should_be_final_and_stale_or_repeat_decisions_should_conflict_without_duplicate_records()
+    public async Task ManagerReject_WhenRepeatedOrStale_ShouldRemainTerminalWithoutDuplicateRecords()
     {
         using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail);
         using HttpClient manager = await ClientAsync(DevelopmentSeedData.ManagerEmail);
@@ -133,7 +135,7 @@ public sealed class ApprovalsApiIntegrationTests(SqlServerDatabaseFixture fixtur
     }
 
     [Fact]
-    public async Task Threshold_boundary_should_finish_at_manager_and_admin_reject_should_be_final()
+    public async Task Approval_WhenAmountEqualsThresholdOrAdminRejects_ShouldReachExpectedTerminalStatus()
     {
         using HttpClient employee = await ClientAsync(DevelopmentSeedData.EmployeeEmail);
         using HttpClient manager = await ClientAsync(DevelopmentSeedData.ManagerEmail);

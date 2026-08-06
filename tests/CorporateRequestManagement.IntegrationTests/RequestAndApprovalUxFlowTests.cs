@@ -5,7 +5,7 @@ namespace CorporateRequestManagement.WebTests;
 using A = webapp::CorporateRequestManagement.Web.Authentication;
 using W = webapp::CorporateRequestManagement.Web.Api;
 
-public sealed class Phase7FinalUxFlowTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
+public sealed class RequestAndApprovalUxFlowTests(AuthenticationWebFactory factory) : IClassFixture<AuthenticationWebFactory>
 {
     [Fact]
     public async Task Request_form_should_publish_required_hidden_and_optional_amount_modes()

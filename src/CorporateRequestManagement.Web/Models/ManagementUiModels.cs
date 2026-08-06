@@ -22,7 +22,7 @@ public sealed record AuditDetailsPage(AuditLogContract Audit, IReadOnlyList<Audi
 public sealed record AuditChangeItem(string Label, string Value);
 public sealed record NotFoundPage(string Title, string Message, string ReturnText, string Controller, string Action);
 
-public static class Phase7Display
+public static class ManagementDisplay
 {
     private static readonly Dictionary<string, string> EntityLabels = new(StringComparer.OrdinalIgnoreCase)
     {

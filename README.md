@@ -1,128 +1,355 @@
 # Kurumsal Talep ve Onay Yönetim Sistemi
 
-Çalışanların kurumsal talepler oluşturduğu ve yönetici/yönetim onay akışlarından geçirdiği .NET 8 örnek uygulamasıdır.
+Kurumsal taleplerin oluşturulması, departman yöneticisi ve yönetim
+onaylarından geçirilmesi, denetlenmesi ve raporlanması için geliştirilen
+rol tabanlı bir .NET 8 uygulamasıdır.
 
-## Quick Start
+Uygulama; Clean Architecture, CQRS/MediatR, SQL Server, JWT refresh-token
+rotation, audit logging, optimistic concurrency ve güvenli Razor BFF
+yaklaşımını kullanır.
 
-Ön koşullar: Git, Windows PowerShell 5.1 veya PowerShell 7, .NET 8 SDK, HTTPS developer certificate ve `CREATE DATABASE` yetkili service-based SQL Server erişimi.
+<p align="center">
+  <img
+    src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white"
+    alt=".NET 8">
+  <img
+    src="https://img.shields.io/badge/Architecture-Clean%20Architecture-2563EB"
+    alt="Clean Architecture">
+  <img
+    src="https://img.shields.io/badge/Database-SQL%20Server-CC2927?logo=microsoftsqlserver&logoColor=white"
+    alt="SQL Server">
+  <img
+    src="https://img.shields.io/badge/Web-Razor%20BFF-7C3AED"
+    alt="Razor BFF">
+  <img
+    src="https://img.shields.io/badge/Tests-495%20Passed-2EA44F"
+    alt="495 Tests Passed">
+</p>
 
-İlk kurulum; SQL bağlantısını doğrular, connection string ile cryptographic JWT signing key'i Git dışındaki API User Secrets store'una yazar, Release build alır ve Development migration/seed işlemini idempotent çalıştırır:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1
+
+<p align="center">
+  <img
+    src="docs/screenshots/05-admin-dashboard.png"
+    alt="Kurumsal Talep Yönetimi Admin Dashboard"
+    width="100%">
+</p>
+
+
+## Proje özeti
+
+Sistem, çalışan taleplerinin e-posta, mesajlaşma veya kontrolsüz belgeler
+üzerinden takip edilmesi yerine merkezi ve denetlenebilir bir süreç sunar.
+
+- Çalışanlar kendi taleplerini oluşturur, düzenler, gönderir ve takip eder.
+- Departman yöneticileri yalnızca yetkili oldukları departmanın taleplerini
+  değerlendirir.
+- Belirlenen tutar eşiğini aşan talepler ikinci seviye Admin onayına aktarılır.
+- Kullanıcı, departman, talep ve işlem geçmişi merkezi yönetim ekranlarından
+  kontrol edilir.
+- Kritik işlemler concurrency kontrolü ve hassas verileri redakte edilmiş
+  audit kayıtlarıyla korunur.
+
+## Temel özellikler
+
+- Employee, Manager ve Admin için rol bazlı yetkilendirme
+- Tutar eşiğine bağlı iki seviyeli talep onay akışı
+- Talep oluşturma, güncelleme, gönderme, iptal ve soft-delete süreçleri
+- Kullanıcı ve departman yönetimi
+- Manager atama ve doğrudan yönetici oluşturma akışı
+- JWT access token ve hashlenmiş refresh-token rotation/revoke
+- Güvenli sunucu tarafı Razor BFF ve `HttpOnly` cookie yaklaşımı
+- SQL Server `RowVersion` ile optimistic concurrency
+- Transactional audit logging ve hassas veri redaksiyonu
+- Sunucu tarafı filtreleme, sıralama ve pagination
+- Idempotent Development migration ve seed otomasyonu
+- Unit testleri ve gerçek SQL Server integration testleri
+
+## Roller ve sorumluluklar
+
+| Rol | Temel sorumluluklar |
+|---|---|
+| **Employee** | Kendi taleplerini oluşturur, günceller, gönderir, iptal eder ve takip eder. |
+| **Manager** | Kendi taleplerini yönetir; yetkili olduğu departmanın taleplerini inceler ve ilk seviye onay veya ret kararı verir. |
+| **Admin** | İkinci seviye onayları yürütür; kullanıcıları, departmanları, talepleri ve audit kayıtlarını yönetir. |
+
+> Yetkilendirme yalnızca arayüz görünürlüğüne dayanmaz. API; rolü, kaynak
+> sahipliğini ve `Department.ManagerId` ilişkisini her yetkili istekte yeniden
+> doğrular. Manager kendi talebi üzerinde onay veya ret kararı veremez.
+
+## Talep yaşam döngüsü
+
+```mermaid
+flowchart TD
+    Draft["Taslak<br/>Draft"]
+    ManagerPending["Yönetici Onayı Bekliyor<br/>PendingManagerApproval"]
+    Threshold{"Tutar onay eşiğini<br/>aşıyor mu?"}
+    AdminPending["Admin Onayı Bekliyor<br/>PendingAdminApproval"]
+    Approved["Onaylandı<br/>Approved"]
+    Rejected["Reddedildi<br/>Rejected"]
+    Cancelled["İptal Edildi<br/>Cancelled"]
+
+    Draft -->|Çalışan gönderir| ManagerPending
+    Draft -->|Çalışan iptal eder| Cancelled
+
+    ManagerPending -->|Çalışan iptal eder| Cancelled
+    ManagerPending -->|Manager reddeder| Rejected
+    ManagerPending -->|Manager onaylar| Threshold
+
+    Threshold -->|Hayır veya tutar yok| Approved
+    Threshold -->|Evet| AdminPending
+
+    AdminPending -->|Admin onaylar| Approved
+    AdminPending -->|Admin reddeder| Rejected
 ```
 
-Uygulamaları API önce, Web sonra olmak üzere readiness kontrollü başlatmak, durdurmak ve bütün kalite kapılarını çalıştırmak için:
+Varsayılan ikinci seviye onay eşiği **10.000 TL**’dir ve yapılandırma
+üzerinden değiştirilebilir. Eşiğe eşit veya eşikten düşük talepler Manager
+onayıyla tamamlanır; eşiği aşan talepler Admin onayına aktarılır.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-development.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\stop-development.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
-```
+`Expense` ve `Equipment` taleplerinde tutar zorunludur. `Leave` ve `Other`
+taleplerinde tutar bulunmayabilir. Tamamlanan kararlar approval history ve
+hassas veri içermeyen audit kayıtlarıyla korunur.
 
-- API Swagger: `https://localhost:7001/swagger`
-- Web: `https://localhost:7002`
-- Development hesapları: aşağıdaki **YALNIZCA DEVELOPMENT** seed tablosu
+### Talep türlerinin modellenmesi
 
-Demo credentials Production ortamında kullanılmamalıdır. Setup script'i secret değerlerini terminale veya repository'ye yazdırmaz; mevcut ilgisiz User Secrets anahtarlarını korur. Script kullanılamayan ortamlarda aşağıdaki manuel restore, User Secrets, initializer ve run adımları ileri seviye alternatif olarak kullanılabilir. Sorun giderme için [troubleshooting](docs/troubleshooting.md) belgesine bakın.
+`RequestType`; `Expense`, `Equipment`, `Leave` ve `Other` değerlerinden oluşan
+bir enum olarak modellenmiştir. Bu değer kümesi sınırlı, önceden tanımlı ve
+çalışma zamanında Admin tarafından yönetilmeyen bir domain sözleşmesidir. Enum
+kullanımı type-safe iş kuralları ve merkezi validation sağlar; dinamik olarak
+yönetilebilir bir talep türü kataloğu gerekseydi reference table tercih
+edilirdi.
 
 ## Mimari
 
-Backend Clean Architecture sınırlarını izler:
+```mermaid
+flowchart TB
+    Browser["Browser"]
+
+    subgraph WebLayer["Web Katmanı"]
+        Web["Razor MVC"]
+        Session["BFF ve Server-side Session"]
+        Gateway["Backend API Gateway"]
+    end
+
+    subgraph Backend["Backend"]
+        API["ASP.NET Core Web API"]
+        Application["Application<br/>CQRS · MediatR · Validation"]
+        Domain["Domain<br/>Entities · State Machine · Business Rules"]
+        Infrastructure["Infrastructure<br/>EF Core · Persistence · Authentication"]
+    end
+
+    Database[("SQL Server")]
+
+    Browser -->|HTTPS| Web
+    Web --> Session
+    Session --> Gateway
+    Gateway -->|HTTP / JSON| API
+
+    API --> Application
+    API --> Infrastructure
+    Infrastructure --> Application
+    Application --> Domain
+    Infrastructure --> Domain
+    Infrastructure --> Database
+```
+
+### Mimari kararlar
+
+- `Domain` katmanı framework ve persistence bağımlılığı taşımaz.
+- `Application`, CQRS use-case’lerini, validation kurallarını ve abstraction
+  sözleşmelerini içerir.
+- `Infrastructure`, persistence ve security abstraction’larını EF Core ve SQL
+  Server ile uygular.
+- `Api`, authentication, authorization, rate limiting ve HTTP sözleşmelerinin
+  giriş noktasıdır.
+- `Web`, backend projelerine doğrudan referans vermez; API ile yalnızca
+  sunucu tarafı HTTP/JSON üzerinden haberleşir.
+- Access ve refresh tokenlar tarayıcı depolamasına yazılmaz; Web sunucusundaki
+  session sınırında tutulur.
+
+Daha ayrıntılı dependency ve runtime kararları için
+[Mimari dokümana](docs/architecture.md) bakın.
+
+## Proje yapısı
 
 ```text
-Domain <- Application <- Infrastructure <- Api
+CorporateRequestManagement
+├── src
+│   ├── CorporateRequestManagement.Domain
+│   ├── CorporateRequestManagement.Application
+│   ├── CorporateRequestManagement.Infrastructure
+│   ├── CorporateRequestManagement.Api
+│   └── CorporateRequestManagement.Web
+├── tests
+│   ├── CorporateRequestManagement.UnitTests
+│   └── CorporateRequestManagement.IntegrationTests
+├── scripts
+│   ├── setup-development.ps1
+│   ├── run-development.ps1
+│   ├── stop-development.ps1
+│   └── test.ps1
+└── docs
+    ├── api
+    ├── screenshots
+    ├── architecture.md
+    ├── er-diagram.md
+    ├── third-party-notices.md
+    └── troubleshooting.md
 ```
 
-Domain bağımsızdır; Application yalnızca Domain'e, Infrastructure Application ve Domain'e, Api ise Application ve Infrastructure'a referans verir. Ayrı MVC `Web` projesi backend projelerine referans vermez ve API ile yalnızca HTTP üzerinden iletişim kurar.
+| Proje | Sorumluluk |
+|---|---|
+| `Domain` | Entity, enum, state transition ve temel iş kuralları |
+| `Application` | CQRS handler’ları, validation ve abstraction sözleşmeleri |
+| `Infrastructure` | EF Core, SQL Server, authentication ve repository uygulamaları |
+| `Api` | REST uçları, authorization, rate limiting ve composition root |
+| `Web` | Server-rendered Razor MVC arayüzü ve güvenli BFF |
+| `UnitTests` | Domain ve Application davranış testleri |
+| `IntegrationTests` | API, SQL Server, security ve uçtan uca entegrasyon testleri |
 
-## Gereksinimler
+## Hızlı başlangıç
 
+### Ön koşullar
+
+- Git
 - .NET 8 SDK
-- SQL Server 2019 veya sonrası
+- Windows PowerShell 5.1 veya PowerShell 7
+- HTTPS development certificate
+- Service-based SQL Server erişimi
+- Veritabanı oluşturma yetkisi (`CREATE ANY DATABASE` veya eşdeğer yetki)
 
-Kurulumu doğrulamak için:
+> Entegrasyon testleri gerçek SQL Server üzerinde çalışır. LocalDB,
+> entegrasyon testleri için desteklenmez.
+
+### 1. Repository’yi klonlayın
 
 ```powershell
-dotnet --info
+git clone https://github.com/yigitucaroglu/CorporateRequestManagement.git
+cd CorporateRequestManagement
+```
+
+Repository private ise klonlama işleminden önce GitHub hesabınıza erişim
+verilmiş olmalıdır.
+
+### 2. Development ortamını hazırlayın
+
+```powershell
+powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File .\scripts\setup-development.ps1
+```
+
+Setup scripti:
+
+- .NET ve SQL Server ön koşullarını doğrular.
+- SQL bağlantı bilgilerini güvenli biçimde alır.
+- Connection string ve JWT signing key değerlerini .NET User Secrets içinde
+  saklar.
+- Secret değerlerini terminale veya repository dosyalarına yazmaz.
+- NuGet paketlerini ve local .NET araçlarını restore eder.
+- Release build çalıştırır.
+- Migration ve Development seed işlemini idempotent olarak uygular.
+- Demo kullanıcılarını ve departman kayıtlarını doğrular.
+
+Kurulum aynı veritabanı üzerinde tekrar çalıştırılabilir. Mevcut migration,
+kullanıcı veya departman kayıtlarını gereksiz yere çoğaltmaz.
+
+Connection string komut satırına veya bir repository dosyasına yazılmaz;
+setup tarafından API ve integration test projelerinin .NET User Secrets
+alanlarına aktarılır. Manuel migration uygulaması gereken ileri seviye bir
+Development senaryosunda önce aynı secret configuration sağlandıktan sonra:
+
+```powershell
 dotnet tool restore
-```
-
-## Restore, build ve test
-
-Repository kökünde:
-
-```powershell
-dotnet restore .\CorporateRequestManagement.sln
-dotnet build .\CorporateRequestManagement.sln --configuration Release --no-restore
-dotnet test .\CorporateRequestManagement.sln --configuration Release --no-build
-```
-
-Entegrasyon testleri her koşuda `CorporateRequestManagement_IntegrationTests_` önekli benzersiz bir gerçek SQL Server veritabanı oluşturur, migration uygular ve yalnızca kendi oluşturduğu veritabanını siler. Test bağlantısının tek kaynağı `CRM_TEST_SQLSERVER_CONNECTION` ortam değişkenidir; değişken yoksa testler açıkça başarısız olur.
-
-```powershell
-$env:CRM_TEST_SQLSERVER_CONNECTION = "<güvenli-test-sql-server-bağlantısı>"
-```
-
-## Authentication kurulumu
-
-JWT issuer `CorporateRequestManagement.Api`, audience `CorporateRequestManagement.Clients`, access token ömrü 15 dakika ve refresh token ömrü 7 gündür. Signing key repository dosyalarında tutulmaz; en az 32 byte Development anahtarı user-secrets veya environment üzerinden sağlanır:
-
-```powershell
-dotnet user-secrets set "Jwt:SigningKey" "<minimum-32-byte-development-key>" --project .\src\CorporateRequestManagement.Api
-$env:Jwt__SigningKey = "<minimum-32-byte-development-key>"
-```
-
-Endpointler `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/revoke` ve yetkili `GET /api/auth/me` uçlarıdır. Raw refresh token yalnız istemciye döner; veritabanında yalnız SHA-256 özeti saklanır. Web BFF uygulanmıştır: browser business API isteklerini doğrudan göndermez; access/refresh token yalnız server-side session sınırında tutulur ve browser `localStorage` veya `sessionStorage` alanlarına yazılmaz.
-
-Auth uçları IP başına dakikada 5, genel API ise authenticated kullanıcı veya IP başına dakikada 100 istekle sınırlıdır. Hatalar `code`, `traceId` ve validation için `errors` içeren ProblemDetails döndürür. Development Swagger arayüzünde Bearer access token ile Authorize kullanılabilir; örnekler `docs/api/auth.http` dosyasındadır.
-
-## EF Core migration yönetimi
-
-EF aracı repository-local manifest ile 8.0 sürümüne sabitlenmiştir:
-
-```powershell
-dotnet tool restore
-dotnet tool run dotnet-ef migrations list `
+dotnet ef database update `
   --project .\src\CorporateRequestManagement.Infrastructure `
-  --startup-project .\src\CorporateRequestManagement.Infrastructure `
-  --context ApplicationDbContext
-
-dotnet tool run dotnet-ef migrations has-pending-model-changes `
-  --project .\src\CorporateRequestManagement.Infrastructure `
-  --startup-project .\src\CorporateRequestManagement.Infrastructure `
-  --context ApplicationDbContext
+  --startup-project .\src\CorporateRequestManagement.Api
 ```
 
-Yeni migration ve design-time database update işlemleri de aynı Infrastructure factory standardını kullanır:
+Development veritabanını migration ve seed ile başlatan uygulama girişi de
+yalnız Development ortamında kullanılabilir:
 
 ```powershell
-dotnet tool run dotnet-ef migrations add <MigrationName> `
-  --project .\src\CorporateRequestManagement.Infrastructure `
-  --startup-project .\src\CorporateRequestManagement.Infrastructure `
-  --context ApplicationDbContext `
-  --output-dir Persistence\Migrations
-
-dotnet tool run dotnet-ef database update `
-  --project .\src\CorporateRequestManagement.Infrastructure `
-  --startup-project .\src\CorporateRequestManagement.Infrastructure `
-  --context ApplicationDbContext
+dotnet run `
+  --project .\src\CorporateRequestManagement.Api `
+  -- --initialize-database
 ```
 
-Bu komutlar yalnız design-time migration yönetimi içindir. Runtime Development migration ve seed akışı aşağıdaki explicit API initializer komutuyla ayrı tutulur.
+Production ortamında bu giriş reddedilir ve demo seed çalıştırılmaz.
 
-Development veritabanını migration ile oluşturup idempotent demo verisini eklemek için:
+### 3. Uygulamayı başlatın
 
 ```powershell
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-dotnet run --project .\src\CorporateRequestManagement.Api -- --initialize-database
+powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File .\scripts\run-development.ps1
 ```
 
-Normal API başlangıcı migration veya seed çalıştırmaz. `--initialize-database` komutu Development dışındaki ortamlarda reddedilir. Bağlantı dizesi Development ayarında güvenli bir LocalDB varsayılanı içerir; diğer ortamlar `ConnectionStrings__DefaultConnection` sağlamalıdır.
+Script önce API uygulamasını başlatır ve readiness kontrolünü bekler. API hazır
+olduktan sonra Web uygulamasını başlatır.
 
-> **YALNIZCA DEVELOPMENT:** Aşağıdaki deterministic hesaplar yerel geliştirme ve değerlendirme içindir. Production, paylaşılan test veya internete açık bir ortamda kullanılmamalı; production başlangıcı bu hesapları seed etmemelidir.
+| Uygulama | Adres |
+|---|---|
+| Web uygulaması | `https://localhost:7002` |
+| API Swagger | `https://localhost:7001/swagger` |
 
-Demo kullanıcıları:
+Tarayıcının otomatik açılmasını engellemek için:
+
+```powershell
+powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File .\scripts\run-development.ps1 `
+  -NoBrowser
+```
+
+### 4. Uygulamayı durdurun
+
+```powershell
+powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File .\scripts\stop-development.ps1
+```
+
+Stop scripti yalnızca bu repository’ye ait olduğu doğrulanan API ve Web process
+tree’lerini kapatır. Makinedeki diğer `dotnet` processlerine müdahale etmez.
+
+### 5. Kalite kapılarını çalıştırın
+
+```powershell
+powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File .\scripts\test.ps1
+```
+
+Test scripti sırasıyla:
+
+1. SQL Server bağlantı ön kontrolünü,
+2. restore işlemlerini,
+3. Release build’i,
+4. unit testlerini,
+5. integration testlerini,
+6. EF Core migration drift kontrolünü
+
+çalıştırır.
+
+Entegrasyon testleri her koşuda yalnızca kendilerine ait,
+`CorporateRequestManagement_IntegrationTests_` önekli geçici bir SQL Server
+veritabanı oluşturur ve işlem sonunda yalnızca bu veritabanını kaldırır.
+
+Kurulum veya çalıştırma sorunları için
+[Sorun giderme rehberine](docs/troubleshooting.md) bakın.
+
+## Development hesapları
+
+> **Yalnızca Development ortamı içindir.** Aşağıdaki hesaplar Production,
+> paylaşılan test veya internete açık ortamlarda kullanılmamalıdır.
+> Production başlangıcında otomatik olarak oluşturulmazlar.
 
 | Rol | E-posta | Parola |
 |---|---|---|
@@ -130,88 +357,177 @@ Demo kullanıcıları:
 | Manager | `manager@company.com` | `CrmDemo!2026` |
 | Employee | `employee@company.com` | `CrmDemo!2026` |
 
-Parolalar veritabanında ASP.NET Core `PasswordHasher<User>` çıktısı olarak tutulur; düz metin parola saklanmaz. Bu kimlik bilgileri yalnızca Development içindir.
+Development seed ayrıca `Yazılım` ve `Finans` departmanlarını oluşturur.
+Manager ve Employee, `Yazılım` departmanına bağlanır ve departman yöneticisi
+ilişkisi tutarlı biçimde kurulur.
 
-Seeder deterministic `Yazılım` ve `Finans` departmanlarını oluşturur. Manager ve Employee `Yazılım` departmanına bağlıdır; `Department.ManagerId` ilişkisi tutarlıdır. Seeder idempotent ve transactionaldır; Production ortamında otomatik çalışmaz.
+Parolalar veritabanında düz metin olarak saklanmaz; ASP.NET Core password
+hasher çıktısı kullanılır.
 
-## Uygulamaları çalıştırma
+## Kalite doğrulaması
 
-```powershell
-dotnet run --project .\src\CorporateRequestManagement.Api --urls https://localhost:7001
-dotnet run --project .\src\CorporateRequestManagement.Web --urls https://localhost:7002
+Son izole clean-clone teslim doğrulamasında repository yeni bir klasöre
+klonlanmış; setup, migration, seed, API/Web başlangıcı, üç rolün giriş akışı,
+testler, güvenli durdurma ve cleanup işlemleri sıfırdan doğrulanmıştır.
+
+| Kalite kapısı | Sonuç |
+|---|---:|
+| Release build | 0 warning, 0 error |
+| Unit testleri | 260 passed |
+| Integration testleri | 235 passed |
+| Toplam | 495 passed |
+| Failed | 0 |
+| Skipped | 0 |
+| Migration drift | Temiz |
+| Clean-clone setup | Başarılı |
+| Development seed idempotency | Başarılı |
+| Üç rol ile login | Başarılı |
+| API/Web readiness | Başarılı |
+
+> Bu tablo Ağustos 2026 tarihindeki son teslim doğrulamasını gösterir. Test
+> kapsamı değiştirildiğinde sonuçlar yeniden çalıştırılmalıdır.
+>
+> Source build ve testlerinde hata yoktur. NuGet vulnerability audit servisine
+> ağ erişilemeyen ortamlarda `NU1900` görülebilir; bu uyarı restore veya test
+> sonucunu etkilemez.
+
+## Güvenlik yaklaşımı
+
+Uygulamanın güvenlik modeli yalnızca arayüzde buton veya menü gizlemeye
+dayanmaz. Yetkilendirme ve kaynak erişimi API katmanında yeniden doğrulanır.
+
+- Access ve refresh token değerleri tarayıcı `localStorage` veya
+  `sessionStorage` alanlarına yazılmaz.
+- Tarayıcı yalnızca opaque ve `HttpOnly` authentication/session cookie’lerini
+  taşır.
+- Access ve refresh tokenlar Web sunucusundaki server-side session sınırında
+  tutulur.
+- Refresh tokenların veritabanında yalnızca SHA-256 özeti saklanır.
+- Token rotation ve revoke akışları uygulanır.
+- Web form mutation işlemleri antiforgery koruması kullanır.
+- API; rol, kaynak sahipliği ve authoritative departman yöneticisi ilişkisini
+  kontrol eder.
+- Manager kendi talebi üzerinde onay veya ret kararı veremez.
+- SQL Server `RowVersion` ile optimistic concurrency uygulanır.
+- Kritik işlemler transaction sınırında yürütülür.
+- Audit kayıtlarında hassas payload değerleri redakte edilir.
+- Authentication ve genel API çağrıları rate limiting ile sınırlandırılır.
+- API transport hataları teknik ayrıntı sızdırmadan güvenli `503` veya `504`
+  kullanıcı sonuçlarına çevrilir.
+- Connection string ve JWT signing key repository yerine .NET User Secrets
+  veya environment configuration üzerinden sağlanır.
+
+### Access ve refresh token yaşam döngüsü
+
+1. Başarılı login, **15 dakika** ömürlü JWT access token ve **7 gün** ömürlü
+   rastgele refresh token üretir.
+2. Ham refresh token istemciye yalnız token response içinde verilir;
+   veritabanında yalnız SHA-256 hash'i, oluşturma IP'si ve süre bilgileri
+   saklanır.
+3. Refresh çağrısı eski tokenı atomik olarak revoke eder, yerine bağlı yeni
+   bir refresh token ve access token üretir. Kullanılmış, süresi dolmuş,
+   revoke edilmiş veya geçersiz token tekrar kullanılamaz.
+4. Revoke/logout akışı aktif refresh tokenı geçersizleştirir. Parola veya
+   hesap durumundaki kritik değişiklikler de kullanıcı tokenlarını revoke
+   eder.
+
+Web uygulaması ham tokenları browser storage'a koymaz; server-side session
+sınırında tutar ve tarayıcıya yalnız `HttpOnly` session cookie'si verir.
+
+### Rate limiting
+
+- Login, refresh ve revoke gibi auth uçları remote IP başına sabit **60
+  saniyelik pencerede 5** istekle sınırlıdır. Bu daha sıkı sınır brute-force
+  ve token abuse riskini azaltır.
+- Genel API limiti authenticated kullanıcı kimliği, bu yoksa remote IP başına
+  sabit **60 saniyelik pencerede 100** istektir; normal UI kullanımına daha
+  geniş kapasite tanır.
+- Her iki limiter için kuyruk kapasitesi `0`'dır. Limit aşımında API güvenli
+  ProblemDetails gövdesiyle HTTP **429** döndürür.
+
+### CQRS ve MediatR yerleşimi
+
+```text
+src/CorporateRequestManagement.Application
+├── Features/Authentication/{Login,Refresh,Revoke}
+├── Features/CorporateRequests/{Create,UpdateDraft,Submit,Cancel,GetMine,GetById}
+├── Features/Approvals/{Decisions,Queries}
+└── Features/Administration/AdministrationUseCases.cs
 ```
 
-API root adresinin 404 dönmesi normaldir; işlevler Swagger ve belgelenmiş `/api/*` rotaları üzerinden sunulur.
+Command handler'ları domain davranışını, odaklı repository'leri ve transaction
+sınırını koordine eder. Query handler'ları dedicated read service üzerinden
+`AsNoTracking`, filtreleme ve DTO projection kullanır. Admin use-case'leri de
+aynı ayrımı izler; controller'lar yalnız HTTP input/output ve MediatR çağrısı
+yapar.
 
-## Web authentication ve Metronic
+### Soft delete
 
-Web uygulaması browser-for-frontend yaklaşımı kullanır: tarayıcı Authentication API'yi doğrudan çağırmaz. Access ve refresh token değerleri HTML, JavaScript, cookie ticket, `localStorage` veya `sessionStorage` içine yazılmaz; yalnızca Web sunucusundaki ASP.NET Core session token store içinde tutulur. Tarayıcıda güvenli, HttpOnly ve SameSite=Lax olan `__Host-Crm.Web.Auth` kimlik cookie'si ile opaque `__Host-Crm.Web.Session` session cookie'si bulunur. Form POST işlemleri antiforgery korumasındadır.
+`User`, `Department` ve `CorporateRequest` fiziksel olarak silinmez. Silme
+işlemi `IsDeleted`, silen kullanıcı ve UTC silinme zamanını kaydeder; EF Core
+global query filter normal list/detail sorgularında bu kayıtları dışlar.
+Approval ve audit geçmişi korunur. Yetkili admin işlemleri dahil aktiflik,
+ilişki ve silinme durumu API tarafında yeniden doğrulanır.
 
-Web'in API adresi `BackendApi:BaseUrl` ile yapılandırılır. Development için API ve Web ayrı terminallerde şu sırayla başlatılabilir:
+## Uygulama ekranları
 
-```powershell
-dotnet run --project .\src\CorporateRequestManagement.Api --urls https://localhost:7001
-dotnet run --project .\src\CorporateRequestManagement.Web --urls https://localhost:7002
-```
+| Employee dashboard | Taleplerim |
+|---|---|
+| ![Employee dashboard](docs/screenshots/02-employee-dashboard.png) | ![Taleplerim](docs/screenshots/03-my-requests.png) |
 
-Rotalar: `GET/POST /account/login`, yalnız POST olan `/account/logout` ve yetkili `/` dashboard. Dashboard isteğinde API 401 dönerse aynı opaque session kimliği için tek refresh çalıştırılır, dönen rotation tokenları atomik olarak session'a yazılır ve istek yalnız bir kez yinelenir.
+| Manager onay akışı | İşlem geçmişi |
+|---|---|
+| ![Manager onay akışı](docs/screenshots/04-manager-approval.png) | ![İşlem geçmişi](docs/screenshots/06-admin-audit.png) |
 
-Focused Web API client'ları `BackendApi:BaseUrl` üzerinden merkezi gateway'i kullanır. API bağlantısı kurulamaz veya response erken kesilirse güvenli 503; `HttpClient` timeout oluşursa güvenli 504 kullanıcı mesajına çevrilir. Caller cancellation maskelenmez. Ham exception, hostname, socket/TLS ayrıntısı, token veya request body kullanıcıya yansıtılmaz; geçici hata sonraki isteğin aynı Web process'i içinde yeniden denenmesini engellemez.
+| Giriş | Admin dashboard |
+|---|---|
+| ![Giriş](docs/screenshots/01-login.png) | ![Admin dashboard](docs/screenshots/05-admin-dashboard.png) |
 
-Bu case implementasyonu tek node üzerinde memory-backed session kullanır. Çoklu instance production dağıtımında ortak bir distributed session store ve paylaşılan data-protection key ring gerekir.
+## Dokümantasyon
 
-Metronic kaynak paketi `.vendor/metronic` altında local-only tutulur. Repository'ye yalnız corporate login ve uygulama shell'i için gereken derlenmiş bundle, font ve görsel alt kümesi kopyalanır; demo sayfaları, kaynak arşivleri, `node_modules`, dokümantasyon ve lisans dosyaları kopyalanmaz. Metronic kaynak/sürüm ve lisans sahipliği proje tesliminde lisans sahibi tarafından doğrulanmalıdır.
+| Belge | İçerik |
+|---|---|
+| [Mimari](docs/architecture.md) | Katman sınırları, dependency yönü ve runtime kararları |
+| [ER diyagramı](docs/er-diagram.md) | Entity, alan ve ilişkilerin veri modeli |
+| [API örnekleri](docs/api/) | Authentication, talepler, onaylar ve yönetim uçları için `.http` örnekleri |
+| [Sorun giderme](docs/troubleshooting.md) | SQL Server, User Secrets, port, HTTPS ve process sorunları |
+| [Third-party bildirimleri](docs/third-party-notices.md) | Framework, paket ve UI template bildirimleri |
 
-## Employee request self-service API
+## Bilinen sınırlamalar
 
-Yetkili kullanıcılar `POST /api/requests`, `GET /api/requests`, `GET /api/requests/{id}`, `PUT /api/requests/{id}`, `POST /api/requests/{id}/submit` ve `POST /api/requests/{id}/cancel` uçlarıyla kendi taleplerini yönetir. Manager’ın kendi talebine ilişkin domain kuralı bulunduğundan sözleşme yeni bir Employee-only rol varsaymaz; authentication ve own-resource ownership zorunludur. Başka kullanıcıya ait veya bulunmayan talep aynı güvenli `404 request.not_found` sonucunu üretir.
+- Web uygulamasının server-side session store’u mevcut değerlendirme
+  senaryosunda memory-backed ve tek-node çalışacak şekilde yapılandırılmıştır.
+- Çoklu instance Production dağıtımında distributed session store ve ortak
+  Data Protection key ring kullanılmalıdır.
+- Development otomasyonları Windows PowerShell 5.1 üzerinde gerçek ortamda
+  doğrulanmıştır.
+- Integration testleri LocalDB yerine veritabanı oluşturma yetkisine sahip
+  service-based SQL Server gerektirir.
+- Repository production deployment pipeline, container orchestration veya
+  distributed caching altyapısı sağlamaz.
+- Production secret yönetiminde Development User Secrets yerine kurumun
+  merkezi secret yönetim çözümü kullanılmalıdır.
+- Mevcut değerlendirme doğrudan Kestrel kullanımını varsayar. Reverse proxy
+  kullanılan Production dağıtımında ASP.NET Core Forwarded Headers yalnızca
+  güvenilir proxy/network allow-list’iyle yapılandırılmalı; güvenilmeyen
+  forwarded header değerleri doğrudan kabul edilmemelidir.
 
-`GET /api/requests` üzerindeki optional `searchTerm`, kullanıcının kendi aktif taleplerinde başlık ve açıklamayı SQL Server tarafında arar. Trimlenmiş maksimum uzunluk 100 karakterdir; arama status/type/date filtreleri, deterministic sorting ve server-side paging ile birlikte çalışır.
+Bu sınırlamalar temel talep ve onay akışlarını etkilemez; production ölçekleme
+ve operasyon gereksinimleri için ilave altyapı kararları gerektirir.
 
-`CreatedByUserId`, `DepartmentId` ve `Status` istemci body’sinden alınmaz. Owner authenticated kullanıcıdan, departman ise kullanıcının güncel departmanından türetilir ve talepte snapshot olarak saklanır. Listeleme paging, status/type/date filtreleri, whitelist sort alanları ve kararlı Id tie-breaker kullanır.
+## UI template ve third-party bildirimleri
 
-Mutation response’ları SQL Server RowVersion değerini 8-byte Base64 string olarak döndürür. Update, submit ve cancel son response’daki RowVersion’ı ister; malformed değer 400, stale değer `409 concurrency.conflict` üretir. Audit action’ları `CorporateRequest.Created`, `CorporateRequest.DraftUpdated`, `CorporateRequest.Submitted` ve `CorporateRequest.Cancelled` olup description, token veya RowVersion içermez. Örnek çağrılar [requests.http](docs/api/requests.http) dosyasındadır.
+Web arayüzünde Metronic/KeenThemes tabanlı lisanslı runtime assetleri
+kullanılmaktadır. Repository’ye yalnızca uygulamanın çalışması için gereken
+derlenmiş CSS, JavaScript, font ve görsel alt kümesi dahil edilmiştir.
 
-## Manager ve Admin approval API
+- Tema kaynak arşivleri repository içinde bulunmaz.
+- Demo sayfaları ve kaynak build paketleri dahil edilmez.
+- Ticari assetler bu repository tarafından açık kaynak olarak yeniden
+  lisanslanmaz.
+- İlgili marka, asset ve lisans hakları kendi hak sahiplerine aittir.
+- Ayrıntılı bildirimler
+  [third-party notices](docs/third-party-notices.md) belgesinde yer alır.
 
-Manager approval kapsamı kullanıcının departman alanından değil, authoritative `Department.ManagerId` ilişkisinden belirlenir. Manager queue/detail/decision uçları yalnız ilgili aktif departmanın `PendingManagerApproval` taleplerini kapsar ve manager’ın kendi taleplerini actionable queue dışında bırakır. Başka departmandaki veya bulunmayan talep aynı güvenli 404 sonucunu; self-action `409 approval.self_action_forbidden` sonucunu üretir. Admin, Manager rolünü devralmaz ve manager uçlarını kullanamaz.
-
-Manager approve işleminde amount null veya yapılandırılmış `Approval:Threshold` değerine eşit/altındaysa talep final `Approved`; threshold üstündeyse `PendingAdminApproval` olur. Varsayılan threshold 10.000’dir. Manager reject final `Rejected` üretir. Admin yalnız `PendingAdminApproval` taleplerini global queue üzerinden approve/reject edebilir; iki karar da final durum ve `CompletedDate` üretir. Güvenli varsayılan olarak Admin self-action da yasaktır.
-
-Her karar güncel 8-byte Base64 RowVersion ister. Stale değer `409 concurrency.conflict`, aynı seviyedeki tekrar karar `409 approval.already_processed` üretir. Request mutation, tekil `(RequestId, ApprovalLevel)` RequestApproval kaydı ve redakte audit kaydı tek `SaveChanges` atomiklik sınırındadır. Audit payload’ı rejection reason, token veya RowVersion taşımaz.
-
-Approval history owner, authoritative department manager ve Admin tarafından görülebilir; diğer aktörlerde kaynak varlığını sızdırmayan 404 döner. Manager/Admin Metronic UI akışı bu HTTP sözleşmesini server-side focused client'lar üzerinden kullanır. Örnekler [approvals.http](docs/api/approvals.http) dosyasındadır.
-## Premium talep ve onay arayüzü
-
-Web uygulaması server-rendered MVC/BFF akışını korur: browser yalnız Web uygulamasına form gönderir; Requests ve Approvals API çağrıları server-side odaklı HTTP client’lar üzerinden yapılır. Access/refresh token HTML, JavaScript, cookie ticket, `localStorage` veya `sessionStorage` içine yazılmaz. Mevcut opaque session token store ve tek-sefer refresh/retry düzeni kullanılır.
-
-UI rotaları `/Requests`, `/Requests/Create`, `/Requests/{id}`, `/Requests/{id}/Edit`, `/Approvals/Manager` ve `/Approvals/Admin` şeklindedir. Tüm mutation’lar antiforgery korumalı POST ve başarılı sonuçlarda PRG uygular. Exact-role navigasyon kullanılır; API authorization authoritative kalır.
-
-RowVersion yalnız hidden business alanı olarak taşınır. Concurrency conflict otomatik overwrite edilmez; kullanıcı güncel kaydı yeniden yüklemeye yönlendirilir. API hataları raw içerik göstermeyen Türkçe deneyimlere çevrilir. Desktop tablolar mobilde yatay scroll oluşturmayan kartlara dönüşür.
-
-Görünür ürün kimliği “Kurumsal Talep Yönetimi”dir. Metronic yalnız kontrollü UI altyapısı olarak kullanılır; görünür template markası veya demo içeriği yoktur. Ayrıntılar [Phase 6 UI Guide](docs/ui/phase6-ui-guide.md) içindedir.
-### Rol bazlı analytics dashboard
-
-Employee dashboard yalnız kullanıcının kendi taleplerini; Manager dashboard authoritative `Department.ManagerId` kapsamındaki gelen talepleri ve yöneticinin kendi kararlarını; Admin dashboard ise güvenli sistem aggregate'lerini gösterir. Bugün, bu ay ve bu yıl sınırları UTC ve `[başlangıç, sonraki başlangıç)` semantiğiyle hesaplanır. Son 30 günlük talep grafiği SQL Server günlük aggregate sorgularından gelir; sahte KPI veya rastgele grafik verisi kullanılmaz.
-
-Akış Browser → Web BFF → role-specific `/api/dashboard/*` → MediatR → dashboard read repository → SQL Server şeklindedir. Manager/Admin onay kuyrukları server-side `searchTerm` aramasını ve Taleplerim ile ortak toolbar, collapsible filtre ve 10/20/50/100 page-size pagination standardını kullanır.
-
-## Phase 7 yönetim, profil ve teslim kapsamı
-
-Exact Admin rotaları kullanıcı ve departman CRUD, açık manager assignment, bütün aktif talepler, RowVersion korumalı request soft delete ve redakte audit list/detail yeteneklerini sunar. Manager’ın `/api/manager/requests` görünümü approval queue değildir; yalnız authoritative `Department.ManagerId` ilişkisindeki departman çalışanlarının bütün durumdaki aktif taleplerini gösterir. Admin ve Manager listeleri controlled search, status/type/date, department (Admin), min/max amount, allow-list sorting ve server-side paging kullanır.
-
-Güncel yönetim sözleşmesi `/api/admin/users` list/detail/create/update/reset-password/delete; `/api/admin/departments` list/detail/create/update/eligible-managers/manager/create-and-assign/delete; `/api/admin/requests` list/detail/delete ve `/api/audit-logs` list/detail/actors uçlarını kapsar. Actor lookup, audit filtresinde ad-soyad/e-posta seçimi için kullanılır. Bütün Web listeleri filtreleri koruyan ortak 10/20/50/100 global pagination bileşenini kullanır.
-
-Kullanıcı, departman ve talep silme fiziksel değildir. Kullanıcı silme aktif tokenları revoke eder; current Admin self-delete/self-disable/self-demotion engellenir. Aktif departman yöneticisi rol/departman/aktiflik değişikliğinden veya silmeden önce manager assignment’tan çıkarılmalıdır. Departman, aktif kullanıcı veya aktif talep taşıyorsa silinmez; güvenli silmede manager ilişkisi aynı transaction içinde temizlenir. Historical request/approval/audit kayıtları korunur.
-
-`GET /api/account/profile` ve `POST /api/account/change-password` bütün authenticated roller içindir. Parola değişimi mevcut parolayı doğrular, güçlü ve farklı yeni parola ister, bütün refresh tokenları revoke eder ve yalnız `User.PasswordChanged` metadata audit’i yazar. Web başarıdan sonra local token/session/cookie durumunu temizleyip login’e döner. Admin reset endpoint’i kendi hesabında kullanılamaz; self-service Profile akışı tercih edilir.
-
-Web rotaları `/Admin/Users`, `/Admin/Departments`, `/Admin/Requests`, `/Admin/AuditLogs`, `/Manager/Requests`, `/Profile` ve `/Profile/ChangePassword` şeklindedir. Browser API’yi doğrudan çağırmaz; mutation’lar server-side focused client ve antiforgery POST üzerinden yürür.
-
-API örnekleri `docs/api/` altındadır. Veri modeli için [ER diyagramı](docs/er-diagram.md), runtime/dependency kararları için [mimari belge](docs/architecture.md), resmî gereksinim kanıtları için [case compliance matrix](docs/case-compliance-matrix.md) kullanılır.
-
-`Phase7CleanDatabaseE2ETests.Clean_database_should_migrate_seed_and_complete_single_end_to_end_management_workflow`, yalnız `CorporateRequestManagement_IntegrationTests_<32-hex-guid>` guard’ını geçen ayrı SQL Server veritabanında sıfırdan migration, iki kez idempotent seed, üç rol login, request create/submit, Manager/Admin approval, user/department management, soft delete, audit query ve fiziksel history korumasını tek akışta doğrular. Development ana veritabanı kullanılmaz veya silinmez.
-
-Resmî kaynak karşılaştırması authoritative `Essa_Teknoloji_Junior_DotNet_Backend_Case_Aday.pdf` ve onun makine tarafından okunabilir `.project/source/ESSA_Official_Case_Text.md` aktarımı üzerinden yapılmıştır. Canonical current-state kanıtları `docs/case-compliance-matrix.md` içindedir.
-
-Bilinen manuel doğrulama sınırı: gerçek cihaz/browser üzerinde 1440×900, 768×1024, 430×932 ve 375×812 responsive görsel smoke bu otomatik test turunda çalıştırılmamıştır. Backend/API/SQL güvenlik ve davranış kapıları otomatik test kapsamındadır.
+Repository, ticari UI assetlerinin yeniden dağıtım koşullarına uygun şekilde
+private tutulur ve yalnızca değerlendirme erişimi verilen kişilerle paylaşılır.

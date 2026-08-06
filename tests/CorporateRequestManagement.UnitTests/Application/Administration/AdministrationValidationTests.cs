@@ -4,10 +4,10 @@ using FluentValidation;
 
 namespace CorporateRequestManagement.UnitTests.Application.Administration;
 
-public sealed class Phase7ValidationTests
+public sealed class AdministrationValidationTests
 {
     [Fact]
-    public void Phase7_application_should_not_hide_multiple_use_cases_behind_operations_classes()
+    public void AdministrationHandlers_WhenInspected_ShouldExposeDistinctUseCasesWithoutOperationsWrappers()
     {
         Type[] applicationTypes = typeof(GetAdminUsersQuery).Assembly.GetTypes();
         Type[] administrationTypes = applicationTypes

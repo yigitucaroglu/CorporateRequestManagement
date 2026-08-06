@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CorporateRequestManagement.IntegrationTests;
 
-internal sealed class Phase7ApiTestHost(SqlServerDatabaseFixture fixture) : IAsyncDisposable
+internal sealed class AdministrationApiTestHost(SqlServerDatabaseFixture fixture) : IAsyncDisposable
 {
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public async Task StartAsync()
@@ -35,12 +35,12 @@ internal sealed class Phase7ApiTestHost(SqlServerDatabaseFixture fixture) : IAsy
 }
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7MutationAuthorizationTests(SqlServerDatabaseFixture fixture)
+public sealed class MutationAuthorizationTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
-    public async Task Every_phase7_mutation_should_enforce_exact_actor_matrix_over_real_http()
+    public async Task ProtectedMutations_WhenCalledByEachRole_ShouldEnforceExactAuthorizationMatrixOverHttp()
     {
-        await using var host = new Phase7ApiTestHost(fixture); await host.StartAsync(); using HttpClient anonymous = host.Factory.CreateClient(); using HttpClient employee = await host.LoginAsync(DevelopmentSeedData.EmployeeEmail); using HttpClient manager = await host.LoginAsync(DevelopmentSeedData.ManagerEmail); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
+        await using var host = new AdministrationApiTestHost(fixture); await host.StartAsync(); using HttpClient anonymous = host.Factory.CreateClient(); using HttpClient employee = await host.LoginAsync(DevelopmentSeedData.EmployeeEmail); using HttpClient manager = await host.LoginAsync(DevelopmentSeedData.ManagerEmail); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         Guid id = Guid.NewGuid(); var mutations = new (HttpMethod Method, string Path, object Body)[] { (HttpMethod.Post, "/api/admin/users", new { firstName = "", lastName = "", email = "bad", initialPassword = "x", role = 1, departmentId = (Guid?)null, isActive = true }), (HttpMethod.Put, $"/api/admin/users/{id}", new { firstName = "", lastName = "", email = "bad", role = 1, departmentId = (Guid?)null, isActive = true }), (HttpMethod.Post, $"/api/admin/users/{id}/reset-password", new { newPassword = "x", confirmPassword = "y" }), (HttpMethod.Delete, $"/api/admin/users/{id}", new { }), (HttpMethod.Post, "/api/admin/departments", new { name = "" }), (HttpMethod.Put, $"/api/admin/departments/{id}", new { name = "" }), (HttpMethod.Put, $"/api/admin/departments/{id}/manager", new { managerId = (Guid?)null }), (HttpMethod.Delete, $"/api/admin/departments/{id}", new { }), (HttpMethod.Delete, $"/api/admin/requests/{id}", new { rowVersion = "invalid" }) };
         foreach (var m in mutations) { Assert.Equal(HttpStatusCode.Unauthorized, (await Send(anonymous, m)).StatusCode); Assert.Equal(HttpStatusCode.Forbidden, (await Send(employee, m)).StatusCode); Assert.Equal(HttpStatusCode.Forbidden, (await Send(manager, m)).StatusCode); HttpStatusCode adminStatus = (await Send(admin, m)).StatusCode; Assert.DoesNotContain(adminStatus, new[] { HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden }); }
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/api/account/change-password", new { })).StatusCode);
@@ -50,12 +50,12 @@ public sealed class Phase7MutationAuthorizationTests(SqlServerDatabaseFixture fi
 }
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7AdminRequestConcurrencyTests(SqlServerDatabaseFixture fixture)
+public sealed class AdminRequestConcurrencyTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
     public async Task Admin_soft_delete_with_stale_rowversion_should_preserve_non_empty_approval_history_then_accept_fresh_version()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient employee = await host.LoginAsync(DevelopmentSeedData.EmployeeEmail);
         using HttpClient manager = await host.LoginAsync(DevelopmentSeedData.ManagerEmail);
@@ -94,7 +94,7 @@ public sealed class Phase7AdminRequestConcurrencyTests(SqlServerDatabaseFixture 
         await AssertStateAndHistoryAsync(host, id, approvalSnapshot, isDeleted: true, expectedDeleteAudits: 1);
     }
 
-    private static async Task AssertStateAndHistoryAsync(Phase7ApiTestHost host, Guid id, System.Collections.IList expected, bool isDeleted, int expectedDeleteAudits)
+    private static async Task AssertStateAndHistoryAsync(AdministrationApiTestHost host, Guid id, System.Collections.IList expected, bool isDeleted, int expectedDeleteAudits)
     {
         await using ApplicationDbContext db = host.Db();
         CorporateRequest row = await db.CorporateRequests.IgnoreQueryFilters().SingleAsync(x => x.Id == id);
@@ -109,12 +109,12 @@ public sealed class Phase7AdminRequestConcurrencyTests(SqlServerDatabaseFixture 
 }
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7AdminSelfProtectionTests(SqlServerDatabaseFixture fixture)
+public sealed class AdminSelfProtectionTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
     public async Task Current_admin_cannot_deactivate_demote_or_delete_self_and_failures_have_no_side_effects()
     {
-        await using var host = new Phase7ApiTestHost(fixture); await host.StartAsync(); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail); await using ApplicationDbContext before = host.Db(); int tokenCount = await before.RefreshTokens.CountAsync(x => x.UserId == DevelopmentSeedData.AdminUserId && x.RevokedAt == null); int auditCount = await before.AuditLogs.CountAsync(x => x.EntityId == DevelopmentSeedData.AdminUserId && (x.Action == "User.Updated" || x.Action == "User.SoftDeleted"));
+        await using var host = new AdministrationApiTestHost(fixture); await host.StartAsync(); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail); await using ApplicationDbContext before = host.Db(); int tokenCount = await before.RefreshTokens.CountAsync(x => x.UserId == DevelopmentSeedData.AdminUserId && x.RevokedAt == null); int auditCount = await before.AuditLogs.CountAsync(x => x.EntityId == DevelopmentSeedData.AdminUserId && (x.Action == "User.Updated" || x.Action == "User.SoftDeleted"));
         object Body(int role, bool active) => new { firstName = "System", lastName = "Admin", email = DevelopmentSeedData.AdminEmail, role, departmentId = (Guid?)null, isActive = active };
         Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/admin/users/{DevelopmentSeedData.AdminUserId}", Body(3, false))).StatusCode); Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/admin/users/{DevelopmentSeedData.AdminUserId}", Body(1, true))).StatusCode); Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/admin/users/{DevelopmentSeedData.AdminUserId}", Body(2, true))).StatusCode); Assert.Equal(HttpStatusCode.Conflict, (await admin.DeleteAsync($"/api/admin/users/{DevelopmentSeedData.AdminUserId}")).StatusCode);
         await using ApplicationDbContext after = host.Db(); User user = await after.Users.IgnoreQueryFilters().SingleAsync(x => x.Id == DevelopmentSeedData.AdminUserId); Assert.True(user.IsActive); Assert.False(user.IsDeleted); Assert.Equal(UserRole.Admin, user.Role); Assert.Equal(tokenCount, await after.RefreshTokens.CountAsync(x => x.UserId == user.Id && x.RevokedAt == null)); Assert.Equal(auditCount, await after.AuditLogs.CountAsync(x => x.EntityId == user.Id && (x.Action == "User.Updated" || x.Action == "User.SoftDeleted")));
@@ -123,7 +123,7 @@ public sealed class Phase7AdminSelfProtectionTests(SqlServerDatabaseFixture fixt
     [Fact]
     public async Task Self_protection_should_allow_updating_another_employee_and_persist_state_and_audit()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail);
         string email = $"positive-{Guid.NewGuid():N}@company.com";
@@ -147,12 +147,12 @@ public sealed class Phase7AdminSelfProtectionTests(SqlServerDatabaseFixture fixt
 }
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7InvalidManagerAssignmentTests(SqlServerDatabaseFixture fixture)
+public sealed class InvalidManagerAssignmentTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
     public async Task Manager_assignment_should_reject_every_invalid_actor_without_state_or_audit_and_allow_valid_replacement()
     {
-        await using var host = new Phase7ApiTestHost(fixture); await host.StartAsync(); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail); Guid departmentId = DevelopmentSeedData.DepartmentId; Guid original = DevelopmentSeedData.ManagerUserId;
+        await using var host = new AdministrationApiTestHost(fixture); await host.StartAsync(); using HttpClient admin = await host.LoginAsync(DevelopmentSeedData.AdminEmail); Guid departmentId = DevelopmentSeedData.DepartmentId; Guid original = DevelopmentSeedData.ManagerUserId;
         async Task<Guid> Create(string label, int role, Guid? dep, bool active) { JsonElement json = await (await admin.PostAsJsonAsync("/api/admin/users", new { firstName = label, lastName = "Manager", email = $"{label}-{Guid.NewGuid():N}@company.com", initialPassword = "ManagerPass!2026", confirmInitialPassword = "ManagerPass!2026", role, departmentId = dep, isActive = active })).Content.ReadFromJsonAsync<JsonElement>(); return json.GetProperty("id").GetGuid(); }
         Guid inactive = await Create("inactive", 2, departmentId, false), wrongDepartment = await Create("wrong", 2, DevelopmentSeedData.FinanceDepartmentId, true), deleted = await Create("deleted", 2, departmentId, true), replacement = await Create("replacement", 2, departmentId, true); Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/admin/users/{deleted}")).StatusCode);
         await using ApplicationDbContext before = host.Db(); int audits = await before.AuditLogs.CountAsync(x => x.EntityId == departmentId && x.Action == "Department.ManagerChanged");
@@ -163,12 +163,12 @@ public sealed class Phase7InvalidManagerAssignmentTests(SqlServerDatabaseFixture
 }
 
 [Collection(SqlServerTestGroup.Name)]
-public sealed class Phase7OpenApiContractTests(SqlServerDatabaseFixture fixture)
+public sealed class OpenApiAdministrationContractTests(SqlServerDatabaseFixture fixture)
 {
     [Fact]
-    public async Task Generated_openapi_should_expose_phase7_routes_security_and_forbid_spoof_or_sensitive_request_fields()
+    public async Task GeneratedOpenApi_WhenInspected_ShouldExposeProtectedAdministrationRoutesWithoutSensitiveFields()
     {
-        await using var host = new Phase7ApiTestHost(fixture);
+        await using var host = new AdministrationApiTestHost(fixture);
         await host.StartAsync();
         JsonElement root = await host.Factory.CreateClient().GetFromJsonAsync<JsonElement>("/swagger/v1/swagger.json");
         Assert.True(root.GetProperty("security").GetArrayLength() > 0);
