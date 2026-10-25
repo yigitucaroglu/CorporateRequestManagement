@@ -517,12 +517,26 @@ ve operasyon gereksinimleri için ilave altyapı kararları gerektirir.
 
 ## UI template ve third-party bildirimleri
 
-Web arayüzünde Metronic/KeenThemes tabanlı lisanslı runtime assetleri
-kullanılmaktadır. Repository’ye yalnızca uygulamanın çalışması için gereken
-derlenmiş CSS, JavaScript, font ve görsel alt kümesi dahil edilmiştir.
+Web arayüzü Metronic/KeenThemes tabanlı lisanslı bir tema kullanır. Tema
+dosyaları ticari lisans kapsamında olduğundan repository’ye dahil edilmez.
 
-- Tema kaynak arşivleri repository içinde bulunmaz.
-- Demo sayfaları ve kaynak build paketleri dahil edilmez.
+Uygulamayı arayüzüyle birlikte çalıştırmak için geçerli bir Metronic lisansı
+ile temanın derlenmiş dosyalarını
+`src/CorporateRequestManagement.Web/wwwroot/assets/` klasörüne yerleştirin.
+Arayüzün kullandığı dosyalar:
+
+- `plugins/global/plugins.bundle.css` ve `plugins/global/plugins.bundle.js`
+  (`plugins/global/fonts/` altındaki font dosyalarıyla birlikte)
+- `css/style.bundle.css`
+- `js/scripts.bundle.js`
+- `media/misc/auth-bg.png`
+
+Bu klasör `.gitignore` kapsamındadır; tema dosyaları yanlışlıkla commit
+edilmez. Domain, Application, Infrastructure ve API katmanları ile testler tema
+dosyaları olmadan derlenir ve çalışır.
+
+- Tema kaynak arşivleri, demo sayfaları ve derlenmiş tema dosyaları repository
+  içinde bulunmaz.
 - Ticari assetler bu repository tarafından açık kaynak olarak yeniden
   lisanslanmaz.
 - İlgili marka, asset ve lisans hakları kendi hak sahiplerine aittir.

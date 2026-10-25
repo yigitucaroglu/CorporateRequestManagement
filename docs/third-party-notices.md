@@ -8,9 +8,9 @@ Proje; .NET/ASP.NET Core/EF Core, MediatR, FluentValidation, Swashbuckle, xUnit 
 
 ## Metronic ve arayüz assetleri
 
-Web uygulamasında KeenThemes Metronic tabanlı derlenmiş runtime CSS/JavaScript, KeenIcons ve tema ile birlikte sağlanan font/icon assetleri bulunur. Metronic ve ilgili ticari assetlerin hakları ilgili hak sahiplerine aittir. Bu repository içinde satın alma belgesi, lisans anahtarı veya public source redistribution iznini kanıtlayan belge bulunmaz.
+Web uygulaması KeenThemes Metronic tabanlı lisanslı bir tema kullanır. Temanın derlenmiş runtime CSS/JavaScript dosyaları, KeenIcons ve tema ile birlikte sağlanan font/icon assetleri ticari lisans kapsamındadır ve bu repository'de bulunmaz. `src/CorporateRequestManagement.Web/wwwroot/assets/` klasörü `.gitignore` ile hariç tutulur; dosyalar lisans sahibi tarafından yerel ortamda sağlanır. Gerekli dosyalar README'deki "UI template ve third-party bildirimleri" bölümünde listelenmiştir.
 
-Bu assetler açık kaynak proje kodu lisansı kapsamına alınmamalıdır. Exact lisans koşulları hak sahibi/lisans sahibi tarafından doğrulanmadan repository public yapılmamalı; en güvenli teslim modeli private repository ve yetkili değerlendirici erişimidir.
+Metronic ve ilgili ticari assetlerin hakları ilgili hak sahiplerine aittir. Bu assetler açık kaynak proje kodu lisansı kapsamına alınmamalıdır.
 
 ## Repository lisansı
 

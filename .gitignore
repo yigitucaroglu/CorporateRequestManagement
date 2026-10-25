@@ -59,6 +59,9 @@ node_modules/
 publish/
 *.pubxml.user
 
+# Licensed Metronic runtime assets (provided locally by the license holder, never committed)
+src/CorporateRequestManagement.Web/wwwroot/assets/
+
 # Raw Metronic/theme sources and archives
 metronic/
 metronic-source/
